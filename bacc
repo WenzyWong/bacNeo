@@ -1,0 +1,112 @@
+#!/bin/bash
+FQ1=""
+FQ2=""
+OMICS=""
+REF=""
+OUT=""
+ZIP=""
+THREADS=16
+KRAKENDB=""
+NEOBAC=$(echo $PATH | tr ':' '\n' | grep 'bacNeo')
+
+usage() {                                 # Function: Print a help message.
+  echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ZIP ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -k KRAKENDB ]
+  -1 Paired-end clean data (R1) in fastq format.
+  -2 Paired-end clean data (R2) in fastq format.
+  -m Type of omics data. 'RNA' for transcriptome, 'WES'/'WGS' for genome.
+  -g Whether the fastq file is zipped. 'y' for zipped (.fastq.gz format), 'n' for unzipped (.fastq format).
+  -r Reference directory path for hisat2 alignment (if omics data is RNA-seq) or bwa alignment (if omics data is WES/WGS).
+  -o Output directory path.
+  -t Number of threads (Default threads = 16).
+  -k Kraken2 database directory path.
+  If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample." 1>&2 
+}
+exit_abnormal() {                         # Function: Exit with error.
+  usage
+  exit 1
+}
+
+while getopts ":1:2:m:g:r:o:t:k:" options; do # Loop: Get the next option;
+                                              # use silent error checking;
+                                              # options n and t take arguments.
+  case "${options}" in
+    1)
+        FQ1=${OPTARG}
+        ;;
+    2)
+        FQ2=${OPTARG}
+        ;;
+    m)
+        OMICS=${OPTARG}
+        ;;
+    g)
+        ZIP=${OPTARG}
+        ;;
+    r)
+        REF=${OPTARG}
+        ;;
+    o)
+        OUT=${OPTARG}
+        ;;
+    t)
+        THREADS=${OPTARG}
+        ;;
+    k)
+        KRAKENDB=${OPTARG}
+        ;;
+    :)                                    # If expected argument omitted:
+      echo "Error: -${OPTARG} requires an argument."
+      exit_abnormal                       # Exit abnormally.
+      ;;
+    *)                                    # If unknown (any other) option:
+      exit_abnormal                       # Exit abnormally.
+      ;;
+  esac
+done
+
+if [ ${ZIP} == "y" ]
+then
+  SAMPLE=$(basename "$FQ1")
+  SAMPLE=${SAMPLE%.*.*}
+elif [ ${ZIP} == "n" ]
+then
+  SAMPLE=$(basename "$FQ1")
+  SAMPLE=${SAMPLE%.*}
+else
+  echo -e "\033[31m Wrong parameter -g, please check the help file. \033[0m"
+fi
+
+if [ ${OMICS} == "RNA" ]
+then
+  echo -e "\033[46;37m Aligning for RNA sequencing... \033[0m"
+  hisat2 -x ${REF} -1 ${FQ1} -2 ${FQ2} -p ${THREADS} -S ${OUT}/${SAMPLE}".sam"
+elif [ ${OMICS} == "WES" ]
+then
+  echo -e "\033[46;37m Aligning for WES... \033[0m"
+  bwa mem -t ${THREADS} -M -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" ${REF} ${FQ1} ${FQ2} > ${OUT}/${SAMPLE}".sam"
+elif [ ${OMICS} == "WGS" ]
+then
+  echo -e "\033[46;37m Aligning for WGS... \033[0m"
+  bwa mem -t ${THREADS} -M -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" ${REF} ${FQ1} ${FQ2} > ${OUT}/${SAMPLE}".sam"
+else
+  echo -e "\033[31m Wrong parameter -m, please check the help file. \033[0m"
+fi
+
+echo -e "\033[46;37m Sorting... \033[0m"
+samtools sort -o ${OUT}/${SAMPLE}"_sorted.bam" -@ ${THREADS} ${OUT}/${SAMPLE}".sam"
+rm ${OUT}/${SAMPLE}".sam"
+
+echo -e "\033[46;37m Building index... \033[0m"
+samtools index ${OUT}/${SAMPLE}"_sorted.bam" ${OUT}/${SAMPLE}".bai"
+
+echo -e "\033[46;37m Extracting unmapped reads... \033[0m"
+samtools view -b -f 4 ${OUT}/${SAMPLE}"_sorted.bam" > ${OUT}/${SAMPLE}"_unmap.bam"
+
+echo -e "\033[46;37m Converting unmapped bam file to fastq files... \033[0m"
+samtools fastq -@ ${THREADS} ${OUT}/${SAMPLE}"_unmap.bam" -1 ${OUT}/${SAMPLE}"_unmap_R1.fq" -2 ${OUT}/${SAMPLE}"_unmap_R2.fq"
+
+echo -e "\033[46;37m Classifying microbe reads... \033[0m"
+kraken2 --threads ${THREADS} --db ${KRAKENDB} --paired ${OUT}/${SAMPLE}"_unmap_R1.fq" ${OUT}/${SAMPLE}"_unmap_R2.fq" --output ${OUT}/${SAMPLE}".o" --report ${OUT}/${SAMPLE}".mpa" --use-mpa-style
+
+echo -e "\033[46;37m Extracting counts for different taxonomies... \033[0m"
+python ${NEOBAC}"/utils/bacc_extract.py" ${OUT} ${SAMPLE}
