@@ -7,10 +7,11 @@ OUT=""
 ZIP=""
 THREADS=16
 KRAKENDB=""
+TAXONOMY=""
 NEOBAC=$(echo $PATH | tr ':' '\n' | grep 'bacNeo')
 
 usage() {                                 # Function: Print a help message.
-  echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ZIP ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -k KRAKENDB ]
+  echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ZIP ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -k KRAKENDB ] [-l TAXONOMY]
   -1 Paired-end clean data (R1) in fastq format.
   -2 Paired-end clean data (R2) in fastq format.
   -m Type of omics data. 'RNA' for transcriptome, 'WES'/'WGS' for genome.
@@ -19,6 +20,7 @@ usage() {                                 # Function: Print a help message.
   -o Output directory path.
   -t Number of threads (Default threads = 16).
   -k Kraken2 database directory path.
+  -l Taxonomy level you would like to generate. Taxonomy levels include: 'd' for Domain, 'p' for Phylum, 'c' for Class, 'o'for Order, 'f' for Family, 'g' for Genus, and 's' for Species. Please ensure the character you input level(s) is(are) included above. If you want to calculate bacterial counts in multiple levels, e.g., in genus and species level, you could input the characters one by one, e.g., -l g -l s.
   If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample." 1>&2 
 }
 exit_abnormal() {                         # Function: Exit with error.
@@ -26,9 +28,9 @@ exit_abnormal() {                         # Function: Exit with error.
   exit 1
 }
 
-while getopts ":1:2:m:g:r:o:t:k:" options; do # Loop: Get the next option;
-                                              # use silent error checking;
-                                              # options n and t take arguments.
+while getopts ":1:2:m:g:r:o:t:k:l:" options; do # Loop: Get the next option;
+                                                # use silent error checking;
+                                                # options n and t take arguments.
   case "${options}" in
     1)
         FQ1=${OPTARG}
@@ -53,6 +55,9 @@ while getopts ":1:2:m:g:r:o:t:k:" options; do # Loop: Get the next option;
         ;;
     k)
         KRAKENDB=${OPTARG}
+        ;;
+    l)
+        TAXONOMY_LEVELS+=("${OPTARG}")
         ;;
     :)                                    # If expected argument omitted:
       echo "Error: -${OPTARG} requires an argument."
@@ -108,5 +113,23 @@ samtools fastq -@ ${THREADS} ${OUT}/${SAMPLE}"_unmap.bam" -1 ${OUT}/${SAMPLE}"_u
 echo -e "\033[46;37m Classifying microbe reads... \033[0m"
 kraken2 --threads ${THREADS} --db ${KRAKENDB} --paired ${OUT}/${SAMPLE}"_unmap_R1.fq" ${OUT}/${SAMPLE}"_unmap_R2.fq" --output ${OUT}/${SAMPLE}".o" --report ${OUT}/${SAMPLE}".mpa" --use-mpa-style
 
-echo -e "\033[46;37m Extracting counts for different taxonomies... \033[0m"
-python ${NEOBAC}"/utils/bacc_extract.py" ${OUT} ${SAMPLE}
+echo -e "\033[46;37m Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
+
+# Valiate inputted taxonomy level(s)
+valid_levels=("d" "p" "c" "o" "f" "g" "s")
+for TAXONOMY in ${TAXONOMY_LEVELS[@]}; do
+    valid=false
+    for valid_level in ${valid_levels[@]}; do
+        if [ ${TAXONOMY} = ${valid_level} ]; then
+            valid=true
+            break
+        fi
+    done
+    if [ "$valid" = false ]; then
+        echo "ERROR: ${TAXONOMY} is not a valid taxonomy level!"
+        exit 1
+    fi
+    
+    echo -e "\033[46;37m Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
+    python ${NEOBAC}"/utils/bacc_extract.py" -p ${OUT} -s ${SAMPLE} -l ${TAXONOMY}
+done
