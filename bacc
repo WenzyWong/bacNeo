@@ -7,7 +7,7 @@ OUT=""
 ZIP=""
 THREADS=16
 KRAKENDB=""
-TAXONOMY=""
+TAXONOMY_LEVELS=("$@")
 NEOBAC=$(echo $PATH | tr ':' '\n' | grep 'bacNeo')
 
 usage() {                                 # Function: Print a help message.
