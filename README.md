@@ -23,7 +23,7 @@ To successfully call the commends as well as their sub-functions, please add the
         -o Output directory path.
         -t Number of threads (Default threads = 16).
         -k Kraken2 database directory path.
-        -l Taxonomy level you would like to generate. Taxonomy levels include: 'd' for Domain, 'p' for Phylum, 'c' for Class, 'o'for Order, 'f' for Family, 'g' for Genus, and 's' for Species. Please ensure the character you input level(s) is(are) included above. If you want to calculate bacterial counts in multiple levels, e.g., in genus and species level, you could input the characters one by one, e.g., -l g -l s.
+        -l Taxonomy level you would like to generate. Taxonomy levels include: 'd' for Domain, 'p' for Phylum, 'c' for Class, 'o'for Order, 'f' for Family, 'g' for Genus, and 's' for Species. Please ensure the level(s) you input is(are) included above. If you want to calculate bacterial counts in multiple levels, e.g., in genus and species level, you could input the characters one by one, e.g., -l g -l s.
         If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample.
     ```
 
