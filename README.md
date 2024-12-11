@@ -2,24 +2,25 @@
 
 ## Introduction
 
-The tool **bacNeo-2.0** aim to identify potential intratumour bacteria-derived neoantigens. 
+The tool **bacNeo-2.0** aims to identify potential intratumour bacteria-derived neoantigens. 
 
 To accomplish the whole antigen-discovery processes, **bacNeo-2.0** requires raw genome, transcriptome, and/or proteome data sets.
 
-The steps processing sequencing data are independent. Therefore, you could also use `bacc` and `bach` commands and other scripts in `./utils` independently to serve your own needs.
+The steps for processing sequencing data are modular and independent. Therefore, you could use `bacc` and `bach` commands, as well as other scripts in `./utils` independently to meet your specific needs.
 
-To successfully call the commends as well as their sub-functions, please add the directory path of this tool to your environment `PATH`.
+To successfully call the commends, please add the directory path of this tool to your environment `PATH`.
 
 ## Commands
 
-- `bacc` can extract bacterial reads from genome or transcriptome datasets. See usage: `bacc -h`.
+- `bacc` can extract the number of bacterial reads from genome or transcriptome datasets. See usage: `bacc -h`.
 
     ```
     Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ZIP ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -k KRAKENDB ] [-l TAXONOMY]
         -1 Paired-end clean data (R1) in fastq format.
+        -2 Paired-end clean data (R2) in fastq format.
         -m Type of omics data. 'RNA' for transcriptome, 'WES'/'WGS' for genome.
         -g Whether the fastq file is zipped. 'y' for zipped (.fastq.gz format), 'n' for unzipped (.fastq format).
-        -r Reference directory path for hisat2 alignment (if omics data is RNA-seq) or bwa alignment (if omics data is WES/WGS).
+        -r Reference directory path for hisat2 alignment (if omics data is RNA-seq) or bwa alignment (if omics data is WES / WGS).
         -o Output directory path.
         -t Number of threads (Default threads = 16).
         -k Kraken2 database directory path.
@@ -27,6 +28,14 @@ To successfully call the commends as well as their sub-functions, please add the
         If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample.
     ```
 
+    Test `bacc` using RNA-seq data in `./testdata/RNA-seq` and reference data in `./reference/` with the following command to generate bacterial counts in genus and species levels in `./output/bacc`:
+
+    ```
+    bacc -1 testdata/RNA-seq/T001_R1.fq.gz -2 testdata/RNA-seq/T001_R2.fq.gz -m RNA -g y -r reference/hisat/hg38 -o output/bacc -t 16 -k reference/krakendb -l g -l s
+    ```
+    
+    The results should be identical to the original outputs in `./output/bacc`.
+    
 - `bach` can predict HLA alleles for each patient sample from genome datasets. See usage: `bach -h`.
 
 - `bacp` can detect bacterial peptides from proteome datasets and predict HLA-peptide affinities based on results from `bach`. The reference should be provided by users. If no proteome dataset available, `bacp` could also use 10-mer winder sliding to chop up reference proteome of interested species, and predict HLA-peptide affinities as well. See usage: `bacp -h`.
