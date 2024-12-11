@@ -6,9 +6,9 @@ The tool **bacNeo-2.0** aim to identify potential intratumour bacteria-derived n
 
 To accomplish the whole antigen-discovery processes, **bacNeo-2.0** requires raw genome, transcriptome, and/or proteome data sets.
 
-The steps processing different omics data are independent. Therefore, you could also use these commands and scripts in `./utils` indenpendently to serve your own specific needs.
+The steps processing sequencing data are independent. Therefore, you could also use `bacc` and `bach` commands and other scripts in `./utils` independently to serve your own needs.
 
-To successfully call the commends as well as their sub-functions, please add the directory path of this tool to your environment PATH.
+To successfully call the commends as well as their sub-functions, please add the directory path of this tool to your environment `PATH`.
 
 ## Commands
 
