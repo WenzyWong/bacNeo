@@ -1,0 +1,115 @@
+#!/bin/bash
+FQ1=""
+FQ2=""
+REF=""
+SCAN=""
+DB=""
+declare -a GENES
+OUT=""
+THREADS=16
+
+usage() {                                 # Function: Print a help message.
+  echo "Usage: bach [ -1 FQ1 ] [ -2 FQ2 ] [ -r REF ] [ -s SCAN ] [ -d DB ] [ -g GENES ] [ -o OUT ] [ -t THREADS ]
+  -1 Paired-end clean data (R1) in fastq format.
+  -2 Paired-end clean data (R2) in fastq format.
+  -r Reference fasta file for bwa alignment, either hg38 or hg19.
+  -s The directory path which you would like to install hla-scan into.
+  -d Database directory path. It's in 'reference' our tool package, named 'HLA-ALL.IMGT'.
+  -g The name(s) of HLA type(s).
+     HLA types include: HLA-A, HLA-B, HLA-C, HLA-E, HLA-F, HLA-G, MICA, MICB, HLA-DMA, HLA-DMB, HLA-DOA, HLA-DOB, HLA-DPA1, HLA-DPB1, HLA-DQA1, HLA-DQB1, HLA-DRA, HLA-DRB1, HLA-DRB5, TAP1, and TAP2.
+     We recommend you use HLA class I types (A, B, and C), if your are interested in intra-tumour bacterial neoantigens.
+     If you would like to impute multiple HLA types at once, you could input the types one by one, e.g., -g HLA-A -g HLA-B.
+  -o Output directory path.
+  -t Number of threads (Default threads = 16).
+  If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample." 1>&2 
+}
+exit_abnormal() {                         # Function: Exit with error.
+  usage
+  exit 1
+}
+
+while getopts ":1:2:r:s:d:g:o:t:" options; do # Loop: Get the next option;
+                                              # use silent error checking;
+                                              # options n and t take arguments.
+  case "${options}" in
+    1)
+        FQ1=${OPTARG}
+        ;;
+    2)
+        FQ2=${OPTARG}
+        ;;
+    r)
+        REF=${OPTARG}
+        ;;
+    s)
+        SCAN=${OPTARG}
+        ;;
+    d)
+        DB=${OPTARG}
+        ;;
+    g)
+        GENES+=("${OPTARG}")
+        ;;
+    o)
+        OUT=${OPTARG}
+        ;;
+    t)
+        THREADS=${OPTARG}
+        ;;
+    :)                                    # If expected argument omitted:
+      echo "Error: -${OPTARG} requires an argument."
+      exit_abnormal                       # Exit abnormally.
+      ;;
+    *)                                    # If unknown (any other) option:
+      exit_abnormal                       # Exit abnormally.
+      ;;
+  esac
+done
+
+TOOL=${SCAN}"/hla_scan_r_v2.1.4"
+if [ -e ${TOOL} ]
+then
+  echo -e "\033[46;37m Hla-scan exists. Skipping installation... \033[0m"
+  chmod 777 ${TOOL}
+else
+  echo -e "\033[46;37m Installing hla-scan... \033[0m"
+  wget "https://github.com/SyntekabioTools/HLAscan/releases/download/v2.1.4/hla_scan_r_v2.1.4" ${TOOLDIR}
+  chmod 777 ${TOOL}
+fi
+
+SAMPLE="${FQ1##*/}"
+SAMPLE="${SAMPLE%%.*}"
+
+if [ -e ${OUT}"/align" ]
+then
+  echo ""
+else
+  mkdir ${OUT}"/align"
+fi
+
+SAM=${OUT}"/align/"${SAMPLE}".sam"
+BAM=${OUT}"/align/"${SAMPLE}"_sorted.bam"
+
+if [ -e ${BAM} ]
+then
+  echo -e "\033[46;37m Aligning completed, skipping... \033[0m"
+else
+  echo -e "\033[46;37m Aligning... \033[0m"
+  bwa mem -t ${THREADS} -M -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" ${REF} ${FQ1} ${FQ2} > ${SAM}
+  
+  echo -e "\033[46;37m Sorting... \033[0m"
+  samtools sort ${SAM} -o ${BAM} -@ ${THREADS}
+  rm ${SAM}
+  samtools index ${BAM} ${BAM}.bai
+  
+  echo -e "\033[46;37m Extracting chromesome 6... \033[0m"
+  CHR6=${OUT}"/align/"${SAMPLE}"_chr6.bam"
+  samtools view -bh ${BAM} 6 > ${CHR6}
+  samtools index ${CHR6} ${CHR6}".bai"
+fi
+
+echo -e "\033[46;37m Selected HLA types: ${GENES[@]} \033[0m"
+for GENE in ${GENES[@]}; do
+    echo -e "\033[46;37m HLA typing of ${GENE}... \033[0m"
+  ${TOOL} -b ${BAM} -v 38 -d ${DB} -g ${GENE} -t ${THREADS} > ${OUT}/${GENE}.txt
+done
