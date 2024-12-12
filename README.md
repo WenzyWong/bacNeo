@@ -59,7 +59,7 @@ To successfully call the commends, please add the directory path of this tool to
 
 - `bacp` can detect bacterial peptides from proteome datasets and predict HLA-peptide affinities based on results from `bach`. The reference should be provided by users. If no proteome dataset available, `bacp` could also use 10-mer winder sliding to chop up reference proteome of interested species, and predict HLA-peptide affinities as well. See usage: `bacp -h`.
 
-## Requirments
+## Requirements
 
 ### For `bacc`
 
