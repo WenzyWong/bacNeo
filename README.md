@@ -41,6 +41,22 @@ To successfully call the commends, please add the directory path of this tool to
     
 - `bach` can predict HLA alleles for each patient sample from genome datasets. See usage: `bach -h`.
 
+    ```
+    Usage: bach [ -1 FQ1 ] [ -2 FQ2 ] [ -r REF ] [ -s SCAN ] [ -d DB ] [ -g GENES ] [ -o OUT ] [ -t THREADS ]
+    -1 Paired-end clean data (R1) in fastq format.
+    -2 Paired-end clean data (R2) in fastq format.
+    -r Reference fasta file for bwa alignment, either hg38 or hg19.
+    -s The directory path which you would like to install hla-scan into.
+    -d Database directory path. It's in 'reference' our tool package, named 'HLA-ALL.IMGT'.
+    -g The name(s) of HLA type(s).
+        HLA types include: HLA-A, HLA-B, HLA-C, HLA-E, HLA-F, HLA-G, MICA, MICB, HLA-DMA, HLA-DMB, HLA-DOA, HLA-DOB, HLA-DPA1, HLA-DPB1, HLA-DQA1, HLA-DQB1, HLA-DRA, HLA-DRB1, HLA-DRB5, TAP1, and TAP2.
+        We recommend you use HLA class I types (A, B, and C), if your are interested in intra-tumour bacterial neoantigens.
+        If you would like to impute multiple HLA types at once, you could input the types one by one, e.g., -g HLA-A -g HLA-B.
+    -o Output directory path.
+    -t Number of threads (Default threads = 16).
+    If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample.
+    ```
+
 - `bacp` can detect bacterial peptides from proteome datasets and predict HLA-peptide affinities based on results from `bach`. The reference should be provided by users. If no proteome dataset available, `bacp` could also use 10-mer winder sliding to chop up reference proteome of interested species, and predict HLA-peptide affinities as well. See usage: `bacp -h`.
 
 ## Requirments
