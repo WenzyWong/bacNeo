@@ -113,8 +113,18 @@ samtools view -b -f 4 ${OUT}/${SAMPLE}"_sorted.bam" > ${OUT}/${SAMPLE}"_unmap.ba
 echo -e "\033[46;37m Converting unmapped bam file to fastq files... \033[0m"
 samtools fastq -@ ${THREADS} ${OUT}/${SAMPLE}"_unmap.bam" -1 ${OUT}/${SAMPLE}"_unmap_R1.fq" -2 ${OUT}/${SAMPLE}"_unmap_R2.fq"
 
+####################################################################
+# Pending revision
+# Adding the DB-build step
+# Check whether files in ${KRAKENDB} are in right format: standard + protein
+## This may require observation among different database building test to finally tell the differences
+# If files in ${KRAKENDB} are not right, consider:
+## Start a new DB-build step in the same(or sub?) directory
+
 echo -e "\033[46;37m Classifying microbe reads... \033[0m"
 kraken2 --threads ${THREADS} --db ${KRAKENDB} --paired ${OUT}/${SAMPLE}"_unmap_R1.fq" ${OUT}/${SAMPLE}"_unmap_R2.fq" --output ${OUT}/${SAMPLE}".o" --report ${OUT}/${SAMPLE}".mpa" --use-mpa-style
+
+####################################################################
 
 echo -e "\033[46;37m Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
 
