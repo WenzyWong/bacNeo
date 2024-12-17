@@ -19,10 +19,9 @@ First, clone this repository:
 ```
 git clone https://github.com/WenzyWong/bacNeo-2.0.git
 cd bacNeo-2.0
-
 ```
 
-Then, create a [Anaconda](https://docs.anaconda.com/anaconda/install/) environment with prerequisites using the `bacNeo.yml` file:
+Then, create an [Anaconda](https://docs.anaconda.com/anaconda/install/) environment with prerequisites using the `bacNeo.yml` file:
 
 ```
 conda env create -n bacNeo -f bacNeo.yml
