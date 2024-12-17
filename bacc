@@ -10,7 +10,30 @@ KRAKENDB=""
 declare -a TAXONOMY_LEVELS
 NEOBAC=$(echo $PATH | tr ':' '\n' | grep 'bacNeo')
 
+print_logo() {
+  echo -e "\e[36m"
+  echo '
+               _                 _   _             ___    ___  
+              | |               | \ | |           |__ \  / _ \ 
+              | |__   __ _  ___ |  \| | ___  ___    ) || | | |
+              | `_ \ / _` |/ __|| . ` |/ _ \/ _ \  / / | | | |
+              | |_) | (_| | (__ | |\  |  __/ (_) |/ /_ | |_| |
+              |____/ \__,_|\___||_| \_|\___|\___/|____(_)___/ 
+  '
+  echo '
+               _                    
+              | |
+              | |__   __ _  ___ ___ 
+              | `_ \ / _` |/ __/ __|
+              | |_) | (_| | (_| (__ 
+              |_.__/ \__,_|\___\___|
+  '
+  echo -e "\e[0m"
+}
+
 usage() {                                 # Function: Print a help message.
+  local function_name=$0
+  print_logo "$function_name"
   echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ZIP ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -k KRAKENDB ] [-l TAXONOMY]
   -1 Paired-end clean data (R1) in fastq format.
   -2 Paired-end clean data (R2) in fastq format.
