@@ -8,7 +8,29 @@ declare -a GENES
 OUT=""
 THREADS=16
 
+print_logo() {
+  echo -e "\e[36m"
+  echo '
+               _                 _   _             ___    ___  
+              | |               | \ | |           |__ \  / _ \ 
+              | |__   __ _  ___ |  \| | ___  ___    ) || | | |
+              | `_ \ / _` |/ __|| . ` |/ _ \/ _ \  / / | | | |
+              | |_) | (_| | (__ | |\  |  __/ (_) |/ /_ | |_| |
+              |____/ \__,_|\___||_| \_|\___|\___/|____(_)___/ 
+  '
+  echo '
+               _                _
+              | |              | |
+              | |__   __ _  ___| |__  
+              | `_ \ / _` |/ __| `_ \ 
+              | |_) | (_| | (__| | | |
+              |____/ \__,_|\___|_| |_|
+  '
+  echo -e "\e[0m"
+}
+
 usage() {                                 # Function: Print a help message.
+  print_logo
   echo "Usage: bach [ -1 FQ1 ] [ -2 FQ2 ] [ -r REF ] [ -s SCAN ] [ -d DB ] [ -g GENES ] [ -o OUT ] [ -t THREADS ]
   -1 Paired-end clean data (R1) in fastq format.
   -2 Paired-end clean data (R2) in fastq format.
