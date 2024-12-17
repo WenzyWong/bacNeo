@@ -32,8 +32,7 @@ print_logo() {
 }
 
 usage() {                                 # Function: Print a help message.
-  local function_name=$0
-  print_logo "$function_name"
+  print_logo
   echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ZIP ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -k KRAKENDB ] [-l TAXONOMY]
   -1 Paired-end clean data (R1) in fastq format.
   -2 Paired-end clean data (R2) in fastq format.
