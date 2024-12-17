@@ -12,7 +12,7 @@ To successfully call the commends, please add the directory path of this tool to
 
 ## Installation
 
-For simplicity, you could clone bacNeo2 from GitHub and run it directory without installing.
+For simplicity, you could clone `bacNeo-2.0` from GitHub and run it directory without installing.
 
 First, clone this repository:
 
@@ -28,19 +28,19 @@ conda env create -n bacNeo -f bacNeo.yml
 conda activate bacNeo
 ```
 
-You could run bacNeo-2.0 through running:
+It is recommended to add the path of cloned repository into your `${PATH}` variable through:
+
+```
+export PATH=$PATH:/place/of/bacNeo-2.0
+```
+
+You could test `bacNeo-2.0` through running:
 
 ```
 bacc -h
 ```
 
-Or, test your environment through running the test data (replace `${HISAT}` and `${KRAKENDB}` with your own path for hisat2 reference and kraken2 database):
-
-```
-bacc -1 testdata/RNA-seq/T001_R1.fq.gz -2 testdata/RNA-seq/T001_R2.fq.gz -m RNA -g y -r ${HISAT} -o output/bacc -t 16 -k ${KRAKENDB} -l g -l s
-```
-
-Additionally, if you need to run `bacp`, you need to manually install [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/), which is not incorporated in conda. Click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacp`.
+Additionally, if you want to run `bacp`, you need to manually install [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/), which is not incorporated in conda. Click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacp`.
 
 ## Commands
 
@@ -63,13 +63,27 @@ Additionally, if you need to run `bacp`, you need to manually install [netMHCpan
         If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample.
     ```
 
-    Test `bacc` using RNA-seq data in `./testdata/RNA-seq` and reference data in `./reference/` with the following command to generate bacterial counts in genus and species levels in `./output/bacc`:
+    Test `bacc` using the RNA-seq data in `./testdata/RNA-seq` with the following command (replace `${HISAT}` and `${DB}` with your own path for hisat2 reference and the place you would like to create a bacterial reference database):
 
     ```
-    bacc -1 testdata/RNA-seq/T001_R1.fq.gz -2 testdata/RNA-seq/T001_R2.fq.gz -m RNA -g y -r reference/hisat/hg38 -o output/bacc -t 16 -k reference/krakendb -l g -l s
+    bacc -1 testdata/RNA-seq/T001_R1.fq.gz -2 testdata/RNA-seq/T001_R2.fq.gz -m RNA -g y -r ${HISAT} -o output/bacc -k ${DB} -l g -l s
     ```
     
-    The results should be identical to the original outputs in `./output/bacc`.
+    The command will generate bacterial counts in genus and species levels in `./output/bacc`. The outputs should be identical to:
+
+    ```
+    T001/
+    ├── counts_g.txt
+    ├── counts_s.txt
+    ├── T001_1.bai
+    ├── T001_1.mpa
+    ├── T001_1.o
+    ├── T001_1_sorted.bam
+    ├── T001_1_species.txt
+    ├── T001_1_unmap.bam
+    ├── T001_1_unmap_R1.fq
+    └── T001_1_unmap_R2.fq
+    ```
     
 - `bach` can predict HLA alleles for each patient sample from genome datasets. See usage: `bach -h`.
 
