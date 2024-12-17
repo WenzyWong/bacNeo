@@ -10,6 +10,39 @@ The steps for processing sequencing data are modular and independent. Therefore,
 
 To successfully call the commends, please add the directory path of this tool to your environment `PATH`.
 
+## Installation
+
+For simplicity, you could clone bacNeo2 from GitHub and run it directory without installing.
+
+First, clone this repository:
+
+```
+git clone https://github.com/WenzyWong/bacNeo-2.0.git
+cd bacNeo-2.0
+
+```
+
+Then, create a [Anaconda](https://docs.anaconda.com/anaconda/install/) environment with prerequisites using the `bacNeo.yml` file:
+
+```
+conda env create -n bacNeo -f bacNeo.yml
+conda activate bacNeo
+```
+
+You could run bacNeo-2.0 through running:
+
+```
+bacc -h
+```
+
+Or, test your environment through running the test data (replace `${HISAT}` and `${KRAKENDB}` with your own path for hisat2 reference and kraken2 database):
+
+```
+bacc -1 testdata/RNA-seq/T001_R1.fq.gz -2 testdata/RNA-seq/T001_R2.fq.gz -m RNA -g y -r ${HISAT} -o output/bacc -t 16 -k ${KRAKENDB} -l g -l s
+```
+
+Additionally, if you need to run `bacp`, you need to manually install [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/), which is not incorporated in conda. Click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacp`.
+
 ## Commands
 
 - `bacc` can extract the number of bacterial reads from genome or transcriptome datasets. See usage: `bacc -h`.
@@ -57,32 +90,14 @@ To successfully call the commends, please add the directory path of this tool to
         If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample.
     ```
 
-- `bacp` can detect bacterial peptides from proteome datasets and predict HLA-peptide affinities based on results from `bach`. The reference should be provided by users. If no proteome dataset available, `bacp` could also use 10-mer winder sliding to chop up reference proteome of interested species, and predict HLA-peptide affinities as well. See usage: `bacp -h`.
+- `bacp` can detect bacterial peptides from proteome datasets and predict HLA-peptide affinities based on results from `bach`. The reference should be provided by users. If no proteome dataset available, `bacp` could also use high abundant species from the results of `bacc`, and predict HLA-peptide affinities as well. See usage: `bacp -h`.
 
 ## Requirements
 
-### For `bacc`
+### For `bacc` and `bach`
 
-- If the input data is RNA-seq data: [hisat2](https://daehwankimlab.github.io/hisat2/)
-
-- If the input data is WES/WGS data: [bwa](https://github.com/lh3/bwa)
-
-- [samtools](https://www.htslib.org/)
-
-- [Kraken 2](https://ccb.jhu.edu/data/kraken2_protocol/)
-
-- python (3.7)
-
-### For `bach`
-
-- [bwa](https://github.com/lh3/bwa)
-
-- [samtools](https://www.htslib.org/)
-
-- [hlascan](https://github.com/SyntekabioTools/HLAscan/) (Optional. You could also install hlascan within `bach` by specifying the installation directory using `-s`.)
+All requirements are listed in `bacNeo.yml`, and could be installed through the commands listed in the section [Installation](#installation).
 
 ### For `bacp`
 
-- If proteome datasets are provided: [maxquant](https://anaconda.org/bioconda/maxquant)
-
-- [netMHCpan 4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/)
+- [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/)
