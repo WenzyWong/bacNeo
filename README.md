@@ -72,17 +72,17 @@ Additionally, if you want to run `bacp`, you need to manually install [netMHCpan
     The command will generate bacterial counts in genus and species levels in `./output/bacc`. The outputs should be identical to:
 
     ```
-    T001/
-    ├── counts_g.txt
-    ├── counts_s.txt
-    ├── T001_1.bai
-    ├── T001_1.mpa
-    ├── T001_1.o
-    ├── T001_1_sorted.bam
-    ├── T001_1_species.txt
-    ├── T001_1_unmap.bam
-    ├── T001_1_unmap_R1.fq
-    └── T001_1_unmap_R2.fq
+    bacc/
+    └── T001
+        ├── counts_g.txt
+        ├── counts_s.txt
+        ├── T001.bai
+        ├── T001.mpa
+        ├── T001.o
+        ├── T001_sorted.bam
+        ├── T001_unmap.bam
+        ├── T001_unmap_R1.fq
+        └── T001_unmap_R2.fq
     ```
     
 - `bach` can predict HLA alleles for each patient sample from genome datasets. See usage: `bach -h`.
