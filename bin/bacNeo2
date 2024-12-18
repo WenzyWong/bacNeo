@@ -1,0 +1,73 @@
+#!/bin/bash
+DB=""
+
+print_logo() {
+  echo -e "\e[36m"
+  echo '
+               _                 _   _             ___   ___  
+              | |               | \ | |           |__ \ / _ \ 
+              | |__   __ _  ___ |  \| | ___  ___    ) || | | |
+              | `_ \ / _` |/ __|| . ` |/ _ \/ _ \  / / | | | |
+              | |_) | (_| | (__ | |\  |  __/ (_) |/ /__| |_| |
+              |____/ \__,_|\___||_| \_|\___|\___/|____(_)___/ 
+  '
+  echo -e "\e[0m"
+}
+
+usage() {                                 # Function: Print a help message.
+  print_logo
+  echo "Usage: bacNeo2 [ --download-db DB ]
+  --download-db The path you would like to put reference databases into.
+  -h, --help    Show this help message.
+  " 1>&2 
+}
+exit_abnormal() {                         # Function: Exit with error.
+  usage
+  exit 1
+}
+
+download_database() {
+    local db_path="$1"
+    mkdir -p "$db_path"/bac_db
+    echo -e "\033[31m Start downloading bacterial database into: ${db_path}/bac_db \033[0m"
+    kraken2-build --download-library bacteria --protein --db "$db_path"/bac_db
+    echo -e "\033[31m Finish downloading bacterial database. \033[0m"
+    
+    mkdir -p "$db_path"/filtering_db
+    echo -e "\033[31m Start downloading filtering database into: ${db_path}/filtering_db \033[0m"
+    checkm2 database --download --path "$db_path"/filtering_db
+    echo -e "\033[31m Finish downloading filtering database. \033[0m"
+}
+
+main() {
+    # If there is no parameter, return help
+    if [ $# -eq 0 ]; then
+        usage
+        exit 1
+    fi
+
+    # Parses command-line arguments
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --download-db)
+                if [ -z "$2" ]; then
+                    echo "ERROR: --download-db require a given path"
+                    exit_abnormal
+                fi
+                DB="$2"
+                download_database "$DB"
+                shift 2  # Skip parameter names and values
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            *)
+                echo "EROOR: Unkown parameter $1"
+                exit_abnormal
+                ;;
+        esac
+    done
+}
+
+main "$@"
