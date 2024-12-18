@@ -28,16 +28,16 @@ conda env create -n bacNeo -f bacNeo.yml
 conda activate bacNeo
 ```
 
-It is recommended to add the path of cloned repository into your `${PATH}` variable through:
+It is recommended to add the `./bin` path of cloned repository into your `${PATH}` variable through:
 
 ```
-export PATH=$PATH:/place/of/bacNeo-2.0
+export PATH=$PATH:/place/of/bacNeo-2.0/bin
 ```
 
 You could test `bacNeo-2.0` through running:
 
 ```
-bacc -h
+bacNeo2 -h
 ```
 
 Additionally, if you want to run `bacp`, you need to manually install [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/), which is not incorporated in conda. Click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacp`.
