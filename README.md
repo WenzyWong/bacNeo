@@ -47,19 +47,20 @@ Additionally, if you want to run `bacp`, you need to manually install [netMHCpan
 - `bacc` can extract the number of bacterial reads from genome or transcriptome datasets. See usage: `bacc -h`.
 
     ```
-    Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ZIP ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -k KRAKENDB ] [-l TAXONOMY]
+    Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ZIP ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -d DB ] [-l TAXONOMY]
         -1 Paired-end clean data (R1) in fastq format.
         -2 Paired-end clean data (R2) in fastq format.
         -m Type of omics data. 'RNA' for transcriptome, 'WES'/'WGS' for genome.
         -g Whether the fastq file is zipped. 'y' for zipped (.fastq.gz format), 'n' for unzipped (.fastq format).
-        -r Reference directory path for hisat2 alignment (if omics data is RNA-seq) or bwa alignment (if omics data is WES / WGS).
+        -r Reference directory path for hisat2 alignment (if omics data is RNA-seq) or bwa alignment (if omics data is WES/WGS).
         -o Output directory path.
         -t Number of threads (Default threads = 16).
-        -k Kraken2 database directory path.
+        -d The directory path of your datasebases generated through bacNeo2 --download-db.
         -l Taxonomy level you would like to generate. 
-           Taxonomy levels include: 'd' for Domain, 'p' for Phylum, 'c' for Class, 'o'for Order, 'f' for Family, 'g' for Genus, and 's' for Species. 
-           Please ensure the level(s) you input is(are) included above. 
-           If you would like to calculate bacterial counts in multiple levels, you could input the characters one by one, e.g., -l g -l s.
+            Taxonomy levels include: 'd' for Domain, 'p' for Phylum, 'c' for Class, 'o'for Order, 'f' for Family, 'g' for Genus, and 's' for Species. 
+            Please ensure the level(s) you input is(are) included above. 
+            If you would like to calculate bacterial counts in multiple levels, you could input the characters one by one, e.g., -l g -l s.
+        Make sure that you've already run bacNeo2 --download-db previously to generate required databases.
         If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample.
     ```
 
