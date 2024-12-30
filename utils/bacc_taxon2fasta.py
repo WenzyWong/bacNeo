@@ -6,9 +6,10 @@
 ## 2. Collect all unique taxon IDs before processing kraken files
 ## 3. Use collected taxon IDs to replace the IDs originally entered with the-t parameter
 ## 4. Remove the unused -o2 parameter when parsing paired-end fastq files
+## 5. 
 
 # Modifications made by Yunzhe WANG, yunzhewang24@m.fudan.edu.cn
-# Updated: 2024-12-18
+# Updated: 2024-12-30
 #################################################################################
 import os, sys, argparse
 import gzip
@@ -17,6 +18,37 @@ from time import strftime
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+
+def parse_mpa_report(mpa_file):
+    """Parse Kraken MPA report to get taxonomy names for each taxid"""
+    taxid_to_name = {}
+    with open(mpa_file, 'r') as f:
+        for line in f:
+            parts = line.strip().split('\t')
+            if len(parts) >= 2:
+                tax_path = parts[0]
+                taxid = parts[1]
+                species_name = tax_path.split('|')[-1]  # Get last element of taxonomy path
+                taxid_to_name[int(taxid)] = species_name
+    return taxid_to_name
+
+def process_kraken_output(kraken_line):
+    """Parse a single line from Kraken output"""
+    l_vals = kraken_line.split('\t')
+    if len(l_vals) < 5:
+        return [-1, '']
+    if "taxid" in l_vals[2]:
+        temp = l_vals[2].split("taxid ")[-1]
+        tax_id = temp[:-1]
+    else:
+        tax_id = l_vals[2]
+
+    read_id = l_vals[1]
+    if tax_id == 'A':
+        tax_id = 81077
+    else:
+        tax_id = int(tax_id)
+    return [tax_id, read_id]
 
 #################################################################################
 #Tree Class 
@@ -95,6 +127,8 @@ def collect_taxids(kraken_file):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--mpa-report', dest='mpa_file', required=True,
+        help='Kraken MPA-style report file for taxonomy names')
     parser.add_argument('-k', dest='kraken_file', required=True,
         help='Kraken output file to parse')
     parser.add_argument('-s','-s1', '-1', '-U', dest='seq_file1', required=True,
@@ -136,8 +170,12 @@ def main():
     
     # Removed the check for requiring -o2 with paired-end input
 
+    # Collect taxonomy names from MPA report
+    sys.stdout.write(">> STEP 0: COLLECTING TAXONOMY NAMES FROM MPA REPORT\n")
+    taxid_to_name = parse_mpa_report(args.mpa_file)
+
     # Collect unique taxids from kraken output
-    sys.stdout.write(">> STEP 0: COLLECTING TAXONOMY IDs FROM KRAKEN OUTPUT\n")
+    sys.stdout.write(">> STEP 1: COLLECTING TAXONOMY IDs FROM KRAKEN OUTPUT\n")
     save_taxids = collect_taxids(args.kraken_file)
     sys.stdout.write(f"\t{len(save_taxids)} unique taxonomy IDs found\n")
     
@@ -147,7 +185,7 @@ def main():
         if args.report_file == "": 
             sys.stderr.write(">> ERROR: --report not specified.")
             sys.exit(1)
-        sys.stdout.write(">> STEP 1: PARSING REPORT FILE %s\n" % args.report_file)
+        sys.stdout.write(">> STEP 2: PARSING REPORT FILE %s\n" % args.report_file)
         base_nodes = {} 
         r_file = open(args.report_file,'r')
         prev_node = -1
@@ -198,7 +236,7 @@ def main():
                         for child in curr_n.children:
                             curr_nodes.append(child)
                     
-    sys.stdout.write(">> STEP 2: PARSING KRAKEN FILE FOR READIDS %s\n" % args.kraken_file)
+    sys.stdout.write(">> STEP 3: PARSING KRAKEN FILE FOR READIDS %s\n" % args.kraken_file)
     count_kraken = 0
     read_line = -1
     exclude_taxids = {} 
@@ -268,38 +306,54 @@ def main():
         if len(seq_file2) > 0:
             s_file2 = open(seq_file2, 'r')
 
-    sys.stdout.write(">> STEP 3: READING SEQUENCE FILES AND WRITING READS\n")
+    sys.stdout.write(">> STEP 4: READING SEQUENCE FILES AND WRITING READS\n")
     sys.stdout.write('\t0 read IDs found (0 mill reads processed)')
     sys.stdout.flush()
 
-    if (args.append):
+    if args.append:
         o_file = open(args.output_file, 'a')
-        if args.output_file2 != '':
-            o_file2 = open(args.output_file2, 'a')
     else:
         o_file = open(args.output_file, 'w')
-        if args.output_file2 != '':
-            o_file2 = open(args.output_file2, 'w')
 
     count_seqs = 0
     count_output = 0
-    for record in SeqIO.parse(s_file1,filetype):
+    
+    # Store taxid for each read ID
+    read_to_taxid = {}
+    with open(args.kraken_file, 'r') as k_file:
+        for line in k_file:
+            tax_id, read_id = process_kraken_output(line)
+            if tax_id != -1 and read_id in save_readids:
+                read_to_taxid[read_id] = tax_id
+
+    for record in SeqIO.parse(args.seq_file1, filetype):
         count_seqs += 1
-        if (count_seqs % 1000 == 0):
-            sys.stdout.write('\r\t%i read IDs found (%0.2f mill reads processed)' % (count_output, float(count_seqs/1000000.)))
+        if count_seqs % 1000 == 0:
+            sys.stdout.write('\r\t%i read IDs found (%0.2f mill reads processed)' % 
+                           (count_output, float(count_seqs/1000000.)))
             sys.stdout.flush()
+            
         test_id = str(record.id)
         test_id2 = test_id
-        if ("/1" in test_id) or ("/2" in test_id):
+        if "/1" in test_id or "/2" in test_id:
             test_id2 = test_id[:-2]
+            
         if test_id in save_readids or test_id2 in save_readids:
             count_output += 1
-            sys.stdout.write('\r\t%i read IDs found (%0.2f mill reads processed)' % (count_output, float(count_seqs/1000000.)))
-            sys.stdout.flush()
+            # Get taxonomy name for this read
+            read_taxid = read_to_taxid.get(test_id, read_to_taxid.get(test_id2))
+            tax_name = taxid_to_name.get(read_taxid, "Unknown")
+            
+            # Create new record with modified header
+            new_record = record
+            new_record.id = f"{tax_name}|{record.id}"
+            new_record.description = ""
+            
             if args.fastq_out:
-                SeqIO.write(record, o_file, "fastq")
+                SeqIO.write(new_record, o_file, "fastq")
             else:
-                SeqIO.write(record, o_file, "fasta")
+                SeqIO.write(new_record, o_file, "fasta")
+                
         if len(save_readids) == count_output:
             break
     s_file1.close()
