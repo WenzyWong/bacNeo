@@ -137,17 +137,10 @@ echo -e "\033[46;37m >> STEP 4: Converting unmapped bam file to fastq files... \
 samtools fastq -@ ${THREADS} ${OUT}/${SAMPLE}"_unmap.bam" -1 ${OUT}/${SAMPLE}"_unmap_R1.fq" -2 ${OUT}/${SAMPLE}"_unmap_R2.fq"
 
 echo -e "\033[46;37m >> STEP 5: Classifying microbe reads... \033[0m"
-kraken2 --threads ${THREADS} --db ${DB}"/bac_db" --paired ${OUT}/${SAMPLE}"_unmap_R1.fq" ${OUT}/${SAMPLE}"_unmap_R2.fq" --output ${OUT}/${SAMPLE}".o" --report ${OUT}/${SAMPLE}".mpa" --use-mpa-style
-kraken2 --threads ${THREADS} --db ${DB}"/bac_db" --paired ${OUT}/${SAMPLE}"_unmap_R1.fq" ${OUT}/${SAMPLE}"_unmap_R2.fq" --output ${OUT}/${SAMPLE}".o" --report ${OUT}/${SAMPLE}".standard"
+kraken2 --threads ${THREADS} --db ${DB}"/bac_db" --paired ${OUT}/${SAMPLE}"_unmap_R1.fq" ${OUT}/${SAMPLE}"_unmap_R2.fq" --output ${OUT}/${SAMPLE}".KRAKEN" --report ${OUT}/${SAMPLE}".mpa" --use-mpa-style
+kraken2 --threads ${THREADS} --db ${DB}"/bac_db" --paired ${OUT}/${SAMPLE}"_unmap_R1.fq" ${OUT}/${SAMPLE}"_unmap_R2.fq" --output ${OUT}/${SAMPLE}".KRAKEN" --report ${OUT}/${SAMPLE}".standard"
 
-echo -e "\033[46;37m >> STEP 6: Converting taxonomy reads into fasta files... \033[0m"
-python ${NEOBAC}"/utils/bacc_extract_kraken_reads.py" -k ${OUT}/${SAMPLE}".o" -s1 ${OUT}/${SAMPLE}"_unmap_R1.fq" -s2 ${OUT}/${SAMPLE}"_unmap_R2.fq" -o ${OUT}/${SAMPLE}"_bacreads.fasta"
-
-echo -e "\033[46;37m >> STEP 7: Removing potential contaminants... \033[0m"
-mkdir -p ${OUT}"/checkm2_predict/"
-checkm2 predict --threads ${THREADS} --input ${OUT}/${SAMPLE}"_bacreads.fasta" --output-directory mkdir -p ${OUT}"/checkm2_predict/" --database_path ${DB}"/CheckM2_database/uniref100.KO.1.dmnd"
-
-echo -e "\033[46;37m >> STEP 8: Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
+echo -e "\033[46;37m >> STEP 6: Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
 # Valiate inputted taxonomy level(s)
 valid_levels=("d" "p" "c" "o" "f" "g" "s")
 for TAXONOMY in ${TAXONOMY_LEVELS[@]}; do
