@@ -8,7 +8,7 @@ ZIP=""
 THREADS=16
 DB=""
 declare -a TAXONOMY_LEVELS
-NEOBAC=$(echo $PATH | tr ':' '\n' | grep 'bacNeo')
+BACNEO=$(echo $PATH | tr ':' '\n' | grep 'bacNeo')
 
 print_logo() {
   echo -e "\e[36m"
@@ -157,5 +157,5 @@ for TAXONOMY in ${TAXONOMY_LEVELS[@]}; do
     fi
     
     echo -e "\033[46;37m >> STEP 9: Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
-    python ${NEOBAC}"/utils/bacc_extract.py" -p ${OUT} -s ${SAMPLE} -l ${TAXONOMY}
+    python ${BACNEO}"/utils/bacc_extract.py" -p ${OUT} -s ${SAMPLE} -l ${TAXONOMY}
 done
