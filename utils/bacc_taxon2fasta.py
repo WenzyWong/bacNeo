@@ -2,13 +2,12 @@
 #################################################################################
 # Modified from original source: https://github.com/jenniferlu717/KrakenTools/extract_kraken_reads.py
 # Main modifications:
-## 1. Remove the -t/--taxon-id parameter 
-## 2. Collect all unique taxon IDs before processing kraken files
-## 3. Use collected taxon IDs to replace the IDs originally entered with the-t parameter
-## 4. Remove the unused -o2 parameter when parsing paired-end fastq files
+## 1. Collect additional unique taxon IDs from kraken files
+## 2. Combine manually specified and auto-collected taxon IDs
+## 3. Remove the unused -o2 parameter check when parsing paired-end fastq files
 
 # Modifications made by Yunzhe WANG, yunzhewang24@m.fudan.edu.cn
-# Updated: 2024-12-18
+# Updated: 2025-01-01
 #################################################################################
 import os, sys, argparse
 import gzip
@@ -101,6 +100,9 @@ def main():
         help='FASTA/FASTQ File containing the raw sequence letters.')
     parser.add_argument('-s2', '-2', dest='seq_file2', default="",
         help='2nd FASTA/FASTQ File containing the raw sequence letters (paired).')
+    parser.add_argument('-t', "--taxid",dest='taxid', required=False,
+        nargs='+', default=[],
+        help='Taxonomy ID[s] of reads to extract (space-delimited)')
     parser.add_argument('-o', "--output",dest='output_file', required=True,
         help='Output FASTA/Q file containing the reads and sample IDs')
     parser.add_argument('-o2',"--output2", dest='output_file2', required=False, default='',
@@ -133,13 +135,19 @@ def main():
     
     time = strftime("%m-%d-%Y %H:%M:%S", gmtime())
     sys.stdout.write("PROGRAM START TIME: " + time + '\n')
-    
-    # Removed the check for requiring -o2 with paired-end input
 
-    # Collect unique taxids from kraken output
-    sys.stdout.write(">> STEP 0: COLLECTING TAXONOMY IDs FROM KRAKEN OUTPUT\n")
-    save_taxids = collect_taxids(args.kraken_file)
-    sys.stdout.write(f"\t{len(save_taxids)} unique taxonomy IDs found\n")
+    # Initialize save_taxids with manually specified taxids
+    save_taxids = {}
+    for tid in args.taxid:
+        save_taxids[int(tid)] = 0
+    
+    # If no taxids specified, collect them from kraken output
+    if not args.taxid:
+        sys.stdout.write(">> STEP 0: COLLECTING TAXONOMY IDs FROM KRAKEN OUTPUT\n")
+        save_taxids = collect_taxids(args.kraken_file)
+        sys.stdout.write(f"\t{len(save_taxids)} unique taxonomy IDs found\n")
+    else:
+        sys.stdout.write(f"\t{len(save_taxids)} taxonomy IDs specified\n")
     
     main_lvls = ['R','K','D','P','C','O','F','G','S']
 
@@ -274,12 +282,8 @@ def main():
 
     if (args.append):
         o_file = open(args.output_file, 'a')
-        if args.output_file2 != '':
-            o_file2 = open(args.output_file2, 'a')
     else:
         o_file = open(args.output_file, 'w')
-        if args.output_file2 != '':
-            o_file2 = open(args.output_file2, 'w')
 
     count_seqs = 0
     count_output = 0
@@ -306,6 +310,34 @@ def main():
     o_file.close()
     sys.stdout.write('\r\t%i read IDs found (%0.2f mill reads processed)\n' % (count_output, float(count_seqs/1000000.)))
     sys.stdout.flush()
+    
+    if len(seq_file2) > 0:
+        count_output = 0
+        count_seqs = 0
+        sys.stdout.write('\t%i read IDs found (%0.2f mill reads processed)' % (count_output, float(count_seqs/1000000.)))
+        sys.stdout.flush()
+        for record in SeqIO.parse(s_file2, filetype):
+            count_seqs += 1
+            if (count_seqs % 1000 == 0):
+                sys.stdout.write('\r\t%i read IDs found (%0.2f mill reads processed)' % (count_output, float(count_seqs/1000000.)))
+                sys.stdout.flush()
+            test_id = str(record.id)
+            test_id2 = test_id
+            if ("/1" in test_id) or ("/2" in test_id):
+                test_id2 = test_id[:-2]
+            if test_id in save_readids or test_id2 in save_readids:
+                count_output += 1
+                sys.stdout.write('\r\t%i read IDs found (%0.2f mill reads processed)' % (count_output, float(count_seqs/1000000.)))
+                sys.stdout.flush()
+            if len(save_readids) == count_output:
+                break
+        s_file2.close()
+        sys.stdout.write('\r\t%i read IDs found (%0.2f mill reads processed)\n' % (count_output, float(count_seqs/1000000.)))
+    
+    sys.stdout.write('\t' + str(count_output) + ' reads printed to file\n')
+    sys.stdout.write('\tGenerated file: %s\n' % args.output_file)
+    if args.output_file2 != '':
+        sys.stdout.write('\tGenerated file: %s\n' % args.output_file2)
     
     time = strftime("%m-%d-%Y %H:%M:%S", gmtime())
     sys.stdout.write("PROGRAM END TIME: " + time + '\n')
