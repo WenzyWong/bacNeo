@@ -3,6 +3,7 @@
 PROTEOME=""
 INPUT=""
 REF=""
+DB=""
 ALLELE=""
 OUTPUT=""
 THREADS=16
@@ -30,12 +31,15 @@ echo '
 }
 
 usage() {                                 # Function: Print a help message.
-  echo "Usage: bacp [-p PROTEOME] [ -i INPUT ] [ -r REF ] [ -a ALLELE ] [ -o OUTPUT ] [ -t THREADS ]
+  echo "Usage: bacp [-p PROTEOME] [ -i INPUT ] [ -r REF ] [ -d DB ] [ -a ALLELE ] [ -o OUTPUT ] [ -t THREADS ]
   -p Whether your datasets encompassing proteome data, 'y' for yes, 'n' for no. 
-  -i Input directory path containing MS data with '.d' format when -p equals to 'y'; the same path as -r when -p equals to 'n'.
+  -i Input directory path:
+     when -p equals to 'y', please input MS data with '.d' format; 
+     when -p equals to 'n', please input the directory path of bacc output.
   -r Reference file path. 
      You could download the reference proteome fasta data of human and interested bacterial species from UniProt (https://www.uniprot.org/). 
      Using 'cat *.fasta > reference.fasta' and 'cd-hit' to remove replicates are recommended pre-processing steps. 
+  -d The directory path of your datasebases generated through bacNeo2 --download-db.
   -a Directory path of bach results, including sample-name specific folders. 
   -o Output directory path.
   -t Number of threads (Default threads = 16).
@@ -48,7 +52,7 @@ exit_abnormal() {                         # Function: Exit with error.
   exit 1
 }
 
-while getopts ":p:i:r:a:o:t:" options; do # Loop: Get the next option;
+while getopts ":p:i:r:d:a:o:t:" options; do # Loop: Get the next option;
                                           # use silent error checking;
                                           # options n and t take arguments.
   case "${options}" in
@@ -60,6 +64,9 @@ while getopts ":p:i:r:a:o:t:" options; do # Loop: Get the next option;
         ;;
     r)
         REF=${OPTARG}
+        ;;
+    d)
+        DB=${OPTARG}
         ;;
     a)
         ALLELE=${OPTARG}
@@ -80,7 +87,7 @@ while getopts ":p:i:r:a:o:t:" options; do # Loop: Get the next option;
   esac
 done
 
-echo -e "\033[46;37m Extracting HLA alleles... \033[0m"
+echo -e "\033[46;37m >> STEP 1: Extracting HLA alleles... \033[0m"
 echo ${BACNEO}
 Rscript ${BACNEO}"/allele_summary.R" ${ALLELE} ${OUTPUT}
 sed -i 's/\"//g' ${OUTPUT}"/hla_summary.txt"
@@ -606,17 +613,17 @@ then
             </fragmentationParams>
         </fragmentationParamsArray>
     </MaxQuantParams>" > ${fileXML}
-    echo -e "\033[46;37m Running maxquant to identify peptides for sample ${sample}... \033[0m"
+    echo -e "\033[46;37m >> STEP 2: Running maxquant to identify peptides for sample ${sample}... \033[0m"
     maxquant ${fileXML}
     rm ${fileXML}
     done
     rm -rf ${OUTPUT}"/tmp"
 
-    echo -e "\033[46;37m Extracting peptide sequences... \033[0m"
+    echo -e "\033[46;37m >> STEP 3: Extracting peptide sequences... \033[0m"
     Rscript ${BACNEO}"/pep_count.R" ${OUTPUT} ${BACNEO}
     sed -i 's/\"//g' ${OUTPUT}"/sequences.txt"
 
-    echo -e "\033[46;37m Predicting HLA-peptide affinities... \033[0m"
+    echo -e "\033[46;37m >> STEP 4: Predicting HLA-peptide affinities... \033[0m"
     cat ${OUTPUT}"/hla_summary.txt" | while read type
     do
         ls ${ALLELE} | while read sample
@@ -626,11 +633,28 @@ then
     done
 elif [ ${PROTEOME} == "n" ]
 then
-    mkdir ${OUTPUT}"/fastas"
-    mkdir ${OUTPUT}"/txts"
-    echo -e "\033[46;37m Using 10-mer window sliding to chop up peptide sequences... \033[0m"
-    Rscript ${BACNEO}"/kmer.R" ${INPUT} ${OUTPUT}"/fastas"
-    echo -e "\033[46;37m Predicting HLA-peptide affinities... \033[0m"
+    ls ${INPUT} | while read sample
+    do
+      mkdir -p ${OUTPUT}/${sample}
+    done    
+    
+    echo -e "\033[46;37m >> STEP 2: Converting taxonomy reads into fasta files... \033[0m"
+    ls ${INPUT} | while read sample
+    do
+      python ${BACNEO}"/utils/bacc_extract_kraken_reads.py" -k ${INPUT}/${sample}".KRAKEN" -s1 ${INPUT}/${sample}"_unmap_R1.fq" -s2 ${INPUT}/${sample}"_unmap_R2.fq" -o ${OUTPUT}/${sample}"_bacreads.fasta"
+    done
+    
+    echo -e "\033[46;37m >> STEP 3: Removing potential contaminants and predicting bacterial peptides... \033[0m"
+    ls ${OUTPUT} | while read sample
+    do
+      mkdir -p ${OUTPUT}"/checkm2_predict/"
+      checkm2 predict --threads ${THREADS} --input ${OUTPUT}/${sample}"_bacreads.fasta" --output-directory ${OUTPUT}"/checkm2_predict/" --database_path ${DB}"/CheckM2_database/uniref100.KO.1.dmnd"
+    done
+    
+    echo -e "\033[46;37m >> STEP 4: Predicting HLA-peptide affinities... \033[0m"
+
+##################################################################
+
     ls ${OUTPUT}"/fastas" | while read file
     do
         new=$(echo ${file} | sed 's/fa/txt/g')
@@ -644,6 +668,8 @@ then
             done
         done
     done
+
+###################################################################
 
 else
     echo "Wrong parameter -p!"
