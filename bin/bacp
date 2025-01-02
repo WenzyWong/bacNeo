@@ -633,36 +633,39 @@ then
     done
 elif [ ${PROTEOME} == "n" ]
 then
-    mkdir -p ${OUTPUT}"/fastas"
+    echo -e "\033[46;37m >> STEP 2: Converting taxonomy reads into fasta files... \033[0m"  
+    mkdir -p ${OUTPUT}"/na_fastas"
     ls ${INPUT} | while read sample
     do
-      mkdir -p ${OUTPUT}"/fastas/"${sample}
-    done    
-    
-    echo -e "\033[46;37m >> STEP 2: Converting taxonomy reads into fasta files... \033[0m"
-    ls ${INPUT} | while read sample
-    do
-      python ${BACNEO}"/utils/bacc_extract_kraken_reads.py" -k ${INPUT}/${sample}".KRAKEN" -s1 ${INPUT}/${sample}"_unmap_R1.fq" -s2 ${INPUT}/${sample}"_unmap_R2.fq" -o ${OUTPUT}"/fastas/"${sample}"_bacreads.fasta"
+        echo "====================================================================="
+        echo "Processing sample: ${sample}..."
+        python ${BACNEO}"/utils/bacp_taxon2fasta.py" -k ${INPUT}/${sample}/${sample}".KRAKEN" -s1 ${INPUT}/${sample}/${sample}"_unmap_R1.fq" -s2 ${INPUT}/${sample}/${sample}"_unmap_R2.fq" -o ${OUTPUT}"/na_fastas/"${sample}"_bacreads.fasta"
     done
-    
+
     echo -e "\033[46;37m >> STEP 3: Removing potential contaminants and predicting bacterial peptides... \033[0m"
     mkdir -p ${OUTPUT}"/checkm2_predict/"
-    ls ${OUTPUT}"/fastas" | while read sample
+    ls ${INPUT} | while read sample
     do
-      mkdir -p ${OUTPUT}"/checkm2_predict/"${sample}
-      checkm2 predict --threads ${THREADS} --input ${OUTPUT}"/fastas/"${sample}"_bacreads.fasta" --output-directory ${OUTPUT}"/checkm2_predict/"${sample} --database_path ${DB}"/CheckM2_database/uniref100.KO.1.dmnd"
+        echo "====================================================================="
+        echo "Processing sample: ${sample}..."
+        mkdir -p ${OUTPUT}"/checkm2_predict/"${sample}
+        checkm2 predict --threads ${THREADS} --input ${OUTPUT}"/na_fastas/"${sample}"_bacreads.fasta" --output-directory ${OUTPUT}"/checkm2_predict/"${sample} --database_path ${DB}"/CheckM2_database/uniref100.KO.1.dmnd"
     done
-    
+
     echo -e "\033[46;37m >> STEP 4: Predicting HLA-peptide affinities... \033[0m"
-    mkdir -p ${OUTPUT}"/txts"
+    mkdir -p ${OUTPUT}"/aa_txts"
     mkdir -p ${OUTPUT}"/affinity"
-    ls ${OUTPUT}"/fastas/" | while read sample
+    ls ${INPUT} | while read sample
     do
-        mkdir -p ${OUTPUT}"/affinity"${sample}
-        cat ${OUTPUT}"/checkm2_predict/protein_files/"${sample}"_bacreads.faa" | grep -v ">" > ${OUTPUT}"/txts/"${sample}"_bacpep.txt"
-        cat ${OUTPUT}"/hla_summary.txt" | while read type
+        echo "====================================================================="
+        echo "Processing sample: ${sample}..."
+        mkdir -p ${OUTPUT}"/affinity/"${sample}
+        awk '/^>/ {header=$0; getline seq; if (header !~ /rbs_motif=None/) print seq}' \
+            ${OUTPUT}"/checkm2_predict/"${sample}"/protein_files/"${sample}"_bacreads.faa" \
+            > ${OUTPUT}"/aa_txts/"${sample}"_bacpep.txt"
+        cat ${OUTPUT}"/allele_summary/"${sample}".txt" | while read type
         do
-            netMHCpan -p ${OUTPUT}"/txts/"${sample}"_bacpep.txt" -BA -xls -a ${type} -xlsfile ${OUTPUT}"/affinity/"${sample}/${sample}"_"${type}".xls"
+            netMHCpan -p ${OUTPUT}"/aa_txts/"${sample}"_bacpep.txt" -BA -xls -a ${type} -xlsfile ${OUTPUT}"/affinity/"${sample}/${sample}"_"${type}".xls"
         done
     done
 else
