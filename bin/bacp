@@ -655,19 +655,20 @@ then
     done
 
     echo -e "\033[46;37m >> STEP 4: Predicting HLA-peptide affinities... \033[0m"
-    mkdir -p ${OUTPUT}"/aa_txts"
+    mkdir -p ${OUTPUT}"/aas"
     mkdir -p ${OUTPUT}"/affinity"
     ls ${INPUT} | while read sample
     do
         echo "====================================================================="
         echo "Processing sample: ${sample}..."
         mkdir -p ${OUTPUT}"/affinity/"${sample}
+        cd-hit -i ${OUTPUT}"/checkm2_predict/"${sample}"/protein_files/"${sample}"_bacreads.faa" -o ${OUTPUT}"/aas/"${sample}"_bacpep_cdhit.fa" -c 0.9 -aS 0.9 -d 0
         awk '/^>/ {header=$0; getline seq; if (header !~ /rbs_motif=None/) print seq}' \
-            ${OUTPUT}"/checkm2_predict/"${sample}"/protein_files/"${sample}"_bacreads.faa" \
-            > ${OUTPUT}"/aa_txts/"${sample}"_bacpep.txt"
+            ${OUTPUT}"/aas/"${sample}"_bacpep_cdhit.fa" \
+            > ${OUTPUT}"/aas/"${sample}"_bacpep.txt"
         cat ${OUTPUT}"/allele_summary/"${sample}".txt" | while read type
         do
-            netMHCpan -p ${OUTPUT}"/aa_txts/"${sample}"_bacpep.txt" -BA -xls -a ${type} -xlsfile ${OUTPUT}"/affinity/"${sample}/${sample}"_"${type}".xls"
+            netMHCpan -p ${OUTPUT}"/aas/"${sample}"_bacpep.txt" -BA -xls -a ${type} -xlsfile ${OUTPUT}"/affinity/"${sample}/${sample}"_"${type}".xls"
         done
     done
 else
