@@ -633,47 +633,43 @@ then
     done
 elif [ ${PROTEOME} == "n" ]
 then
+    mkdir -p ${OUTPUT}"/fastas"
     ls ${INPUT} | while read sample
     do
-      mkdir -p ${OUTPUT}/${sample}
+      mkdir -p ${OUTPUT}"/fastas/"${sample}
     done    
     
     echo -e "\033[46;37m >> STEP 2: Converting taxonomy reads into fasta files... \033[0m"
     ls ${INPUT} | while read sample
     do
-      python ${BACNEO}"/utils/bacc_extract_kraken_reads.py" -k ${INPUT}/${sample}".KRAKEN" -s1 ${INPUT}/${sample}"_unmap_R1.fq" -s2 ${INPUT}/${sample}"_unmap_R2.fq" -o ${OUTPUT}/${sample}"_bacreads.fasta"
+      python ${BACNEO}"/utils/bacc_extract_kraken_reads.py" -k ${INPUT}/${sample}".KRAKEN" -s1 ${INPUT}/${sample}"_unmap_R1.fq" -s2 ${INPUT}/${sample}"_unmap_R2.fq" -o ${OUTPUT}"/fastas/"${sample}"_bacreads.fasta"
     done
     
     echo -e "\033[46;37m >> STEP 3: Removing potential contaminants and predicting bacterial peptides... \033[0m"
-    ls ${OUTPUT} | while read sample
+    mkdir -p ${OUTPUT}"/checkm2_predict/"
+    ls ${OUTPUT}"/fastas" | while read sample
     do
-      mkdir -p ${OUTPUT}"/checkm2_predict/"
-      checkm2 predict --threads ${THREADS} --input ${OUTPUT}/${sample}"_bacreads.fasta" --output-directory ${OUTPUT}"/checkm2_predict/" --database_path ${DB}"/CheckM2_database/uniref100.KO.1.dmnd"
+      mkdir -p ${OUTPUT}"/checkm2_predict/"${sample}
+      checkm2 predict --threads ${THREADS} --input ${OUTPUT}"/fastas/"${sample}"_bacreads.fasta" --output-directory ${OUTPUT}"/checkm2_predict/"${sample} --database_path ${DB}"/CheckM2_database/uniref100.KO.1.dmnd"
     done
     
     echo -e "\033[46;37m >> STEP 4: Predicting HLA-peptide affinities... \033[0m"
-
-##################################################################
-
-    ls ${OUTPUT}"/fastas" | while read file
+    mkdir -p ${OUTPUT}"/txts"
+    mkdir -p ${OUTPUT}"/affinity"
+    ls ${OUTPUT}"/fastas/" | while read sample
     do
-        new=$(echo ${file} | sed 's/fa/txt/g')
-        name=$(echo ${new} | sed 's/\.txt$//')
-        cat ${OUTPUT}"/fastas/"${file} | grep -v ">" > ${OUTPUT}"/txts/"${new}
+        mkdir -p ${OUTPUT}"/affinity"${sample}
+        cat ${OUTPUT}"/checkm2_predict/protein_files/"${sample}"_bacreads.faa" | grep -v ">" > ${OUTPUT}"/txts/"${sample}"_bacpep.txt"
         cat ${OUTPUT}"/hla_summary.txt" | while read type
         do
-            ls ${ALLELE} | while read sample
-            do
-                netMHCpan -p ${OUTPUT}"/txts/"${new} -BA -xls -a ${type} -xlsfile ${OUTPUT}/${sample}'_'${type}'_'${name}.xls
-            done
+            netMHCpan -p ${OUTPUT}"/txts/"${sample}"_bacpep.txt" -BA -xls -a ${type} -xlsfile ${OUTPUT}"/affinity/"${sample}/${sample}"_"${type}".xls"
         done
     done
-
-###################################################################
-
 else
     echo "Wrong parameter -p!"
 fi
 
+######################################################################################
+# Pending...
 echo -e "\033[46;37m Extracting sample-specific strong and weak binders... \033[0m"
 Rscript ${BACNEO}"/affinity_summary.R" ${OUTPUT}
