@@ -206,7 +206,7 @@ def main():
                         for child in curr_n.children:
                             curr_nodes.append(child)
     else:
-        sys.stdout.write(">> STEP 1: NO PARENTS OR CHILDREN PARAMETER, SKIPPING %s\n") 
+        sys.stdout.write(">> STEP 1: NO PARENTS OR CHILDREN PARAMETER, SKIPPING THIS STEP \n") 
     
     sys.stdout.write(">> STEP 2: PARSING KRAKEN FILE FOR READIDS %s\n" % args.kraken_file)
     count_kraken = 0
