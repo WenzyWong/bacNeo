@@ -88,9 +88,11 @@ while getopts ":p:i:r:d:a:o:t:" options; do # Loop: Get the next option;
 done
 
 echo -e "\033[46;37m >> STEP 1: Extracting HLA alleles... \033[0m"
-echo ${BACNEO}
-Rscript ${BACNEO}"/allele_summary.R" ${ALLELE} ${OUTPUT}
-sed -i 's/\"//g' ${OUTPUT}"/hla_summary.txt"
+mkdir -p ${OUTPUT}"/allele_summary"
+ls ${ALLELE} | while read sample
+do
+    find ${ALLELE}/${sample} -name "HLA-*.txt" | xargs awk '/HLA gene/ {split($0,a,": "); gene=a[2]} /Type [12]/ {split($3,b,":"); print gene b[1]":"b[2]}' > ${OUTPUT}"/allele_summary/"${sample}.txt
+done
 
 if  [ ${PROTEOME} == "y" ]
 then
