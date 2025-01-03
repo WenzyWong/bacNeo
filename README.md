@@ -37,7 +37,7 @@ export PATH=$PATH:/place/of/bacNeo/bin
 You could test `bacNeo` through running:
 
 ```
-bacNeo2 -h
+bacNeo -h
 ```
 
 Additionally, if you want to run `bacp`, you need to manually install [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/), which is not incorporated in conda. Click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacp`.
@@ -55,12 +55,12 @@ Additionally, if you want to run `bacp`, you need to manually install [netMHCpan
         -r Reference directory path for hisat2 alignment (if omics data is RNA-seq) or bwa alignment (if omics data is WES/WGS).
         -o Output directory path.
         -t Number of threads (Default threads = 16).
-        -d The directory path of your datasebases generated through bacNeo2 --download-db.
+        -d The directory path of your datasebases generated through bacNeo --download-db.
         -l Taxonomy level you would like to generate. 
             Taxonomy levels include: 'd' for Domain, 'p' for Phylum, 'c' for Class, 'o'for Order, 'f' for Family, 'g' for Genus, and 's' for Species. 
             Please ensure the level(s) you input is(are) included above. 
             If you would like to calculate bacterial counts in multiple levels, you could input the characters one by one, e.g., -l g -l s.
-        Make sure that you've already run bacNeo2 --download-db previously to generate required databases.
+        Make sure that you've already run bacNeo --download-db previously to generate required databases.
         If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample.
     ```
 
