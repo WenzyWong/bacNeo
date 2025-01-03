@@ -1,10 +1,10 @@
-# bacNeo-2.0
+# bacNeo
 
 ## Introduction
 
-The tool **bacNeo-2.0** aims to identify potential intratumour bacteria-derived neoantigens. 
+The tool **bacNeo** aims to identify potential intratumour bacteria-derived neoantigens. 
 
-To accomplish the whole antigen-discovery processes, **bacNeo-2.0** requires raw genome, transcriptome, and/or proteome data sets.
+To accomplish the whole antigen-discovery processes, **bacNeo** requires raw genome, transcriptome, and/or proteome data sets.
 
 The steps for processing sequencing data are modular and independent. Therefore, you could use `bacc` and `bach` commands, as well as other scripts in `./utils` independently to meet your specific needs.
 
@@ -12,13 +12,13 @@ To successfully call the commends, please add the directory path of this tool to
 
 ## Installation
 
-For simplicity, you could clone `bacNeo-2.0` from GitHub and run it directory without installing.
+For simplicity, you could clone `bacNeo` from GitHub and run it directory without installing.
 
 First, clone this repository:
 
 ```
-git clone https://github.com/WenzyWong/bacNeo-2.0.git
-cd bacNeo-2.0
+git clone https://github.com/WenzyWong/bacNeo.git
+cd bacNeo
 ```
 
 Then, create an [Anaconda](https://docs.anaconda.com/anaconda/install/) environment with prerequisites using the `bacNeo.yml` file:
@@ -31,10 +31,10 @@ conda activate bacNeo
 It is recommended to add the `./bin` path of cloned repository into your `${PATH}` variable through:
 
 ```
-export PATH=$PATH:/place/of/bacNeo-2.0/bin
+export PATH=$PATH:/place/of/bacNeo/bin
 ```
 
-You could test `bacNeo-2.0` through running:
+You could test `bacNeo` through running:
 
 ```
 bacNeo2 -h
