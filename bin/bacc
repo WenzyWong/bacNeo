@@ -9,6 +9,7 @@ THREADS=16
 DB=""
 declare -a TAXONOMY_LEVELS
 BACNEO=$(echo $PATH | tr ':' '\n' | grep 'bacNeo')
+RUN_CHECKM2=false
 
 print_logo() {
   echo -e "\e[36m"
@@ -33,7 +34,7 @@ print_logo() {
 
 usage() {                                 # Function: Print a help message.
   print_logo
-  echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ZIP ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -d DB ] [-l TAXONOMY]
+  echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ZIP ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -d DB ] [-l TAXONOMY] [ -c ]
   -1 Paired-end clean data (R1) in fastq format.
   -2 Paired-end clean data (R2) in fastq format.
   -m Type of omics data. 'RNA' for transcriptome, 'WES'/'WGS' for genome.
@@ -46,6 +47,7 @@ usage() {                                 # Function: Print a help message.
      Taxonomy levels include: 'd' for Domain, 'p' for Phylum, 'c' for Class, 'o'for Order, 'f' for Family, 'g' for Genus, and 's' for Species. 
      Please ensure the level(s) you input is(are) included above. 
      If you would like to calculate bacterial counts in multiple levels, you could input the characters one by one, e.g., -l g -l s.
+  -c [Optional] Check the quality and potential contamination of bacterial reads.
   Make sure that you've already run bacNeo2 --download-db previously to generate required databases.
   If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample." 1>&2 
 }
@@ -84,6 +86,9 @@ while getopts ":1:2:m:g:r:o:t:d:l:" options; do # Loop: Get the next option;
         ;;
     l)
         TAXONOMY_LEVELS+=("${OPTARG}")
+        ;;
+    c)
+        RUN_CHECKM2=true
         ;;
     :)                                    # If expected argument omitted:
       echo "Error: -${OPTARG} requires an argument."
@@ -159,3 +164,14 @@ for TAXONOMY in ${TAXONOMY_LEVELS[@]}; do
     echo -e "\033[46;37m >> STEP 9: Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
     python ${BACNEO}"/utils/bacc_extract.py" -p ${OUT} -s ${SAMPLE} -l ${TAXONOMY}
 done
+
+if [ "$RUN_CHECKM2" = true ]; then
+  echo -e "\033[46;37m >> STEP Extra 1: Converting taxonomy reads into fasta files... \033[0m"  
+  python ${BACNEO}"/utils/bacp_taxon2fasta.py" -k ${OUT}/${SAMPLE}".KRAKEN" -s1 ${OUT}/${SAMPLE}"_unmap_R1.fq" -s2 ${OUT}/${SAMPLE}"_unmap_R2.fq" -o ${OUT}/${SAMPLE}"_bacreads.fa"
+
+  echo -e "\033[46;37m >> STEP Extra 2: Checking reads quality and potential contaminants... \033[0m"
+  mkdir -p ${OUT}"/checkm2_predict/"
+  checkm2 predict --threads ${THREADS} --input ${OUT}/${SAMPLE}"_bacreads.fa" --output-directory ${OUT}"/checkm2_predict/" --database_path ${DB}"/CheckM2_database/uniref100.KO.1.dmnd"
+  mv ${OUT}"/checkm2_predict/quality_report.tsv" ${OUT}/${SAMPLE}"_quality_report.tsv"
+  rm -rf ${OUT}"/checkm2_predict/"
+fi
