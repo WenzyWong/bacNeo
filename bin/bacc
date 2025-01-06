@@ -4,7 +4,7 @@ FQ2=""
 OMICS=""
 REF=""
 OUT=""
-ZIP=""
+ZIP=false
 THREADS=16
 DB=""
 declare -a TAXONOMY_LEVELS
@@ -34,11 +34,11 @@ print_logo() {
 
 usage() {                                 # Function: Print a help message.
   print_logo
-  echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ZIP ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -d DB ] [-l TAXONOMY] [ -c ]
+  echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -d DB ] [-l TAXONOMY] [ -c ]
   -1 Paired-end clean data (R1) in fastq format.
   -2 Paired-end clean data (R2) in fastq format.
   -m Type of omics data. 'RNA' for transcriptome, 'WES'/'WGS' for genome.
-  -g Whether the fastq file is zipped. 'y' for zipped (.fastq.gz format), 'n' for unzipped (.fastq format).
+  -g [Optional] If the fastq file is zipped.
   -r Reference directory path for hisat2 alignment (if omics data is RNA-seq) or bwa alignment (if omics data is WES/WGS).
   -o Output directory path.
   -t Number of threads (Default threads = 16).
@@ -70,7 +70,7 @@ while getopts ":1:2:m:g:r:o:t:d:l:" options; do # Loop: Get the next option;
         OMICS=${OPTARG}
         ;;
     g)
-        ZIP=${OPTARG}
+        ZIP=true
         ;;
     r)
         REF=${OPTARG}
@@ -100,11 +100,11 @@ while getopts ":1:2:m:g:r:o:t:d:l:" options; do # Loop: Get the next option;
   esac
 done
 
-if [ ${ZIP} == "y" ]
+if [ ${ZIP} == true ]
 then
   SAMPLE=$(basename "$FQ1")
   SAMPLE=${SAMPLE%.*.*}
-elif [ ${ZIP} == "n" ]
+elif [ ${ZIP} == false ]
 then
   SAMPLE=$(basename "$FQ1")
   SAMPLE=${SAMPLE%.*}
