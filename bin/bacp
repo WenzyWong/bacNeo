@@ -1,6 +1,4 @@
 #!/bin/bash
-
-# Define default values
 PROTEOME=false
 INPUT=""
 REF=""
@@ -8,7 +6,7 @@ DB=""
 ALLELE=""
 OUTPUT=""
 THREADS=16
-BACNEO=$(echo "${PATH}" | tr ':' '\n' | grep 'bacNeo' | uniq)
+BACNEO_PATHS=$(echo "${PATH}" | tr ':' '\n' | grep 'bacNeo' | uniq | xargs dirname)
 
 print_logo() {
     echo -e "\e[36m"
@@ -72,11 +70,24 @@ while getopts ":p:i:r:d:a:o:t:" options; do
     esac
 done
 
+# Extract the correct path of bacNeo
+for tmp_path in $BACNEO_PATHS; do
+  if [ -f "${tmp_path}/bacNeo.yml" ] && [ -d "${tmp_path}/bin" ]; then
+    BACNEO="${tmp_path}"
+    break
+  fi
+done
+if [ -z "${BACNEO}" ]; then
+  echo "The bacNeo path with the correct file structure was not found!"
+else
+  echo "The bacNeo path found is: ${BACNEO}"
+fi
+
+# Validate parameters
 if [ -z "${INPUT}" ] || [ -z "${DB}" ] || [ -z "${ALLELE}" ] || [ -z "${OUTPUT}" ]; then
     echo "Error: -i, -d, -a, and -o parameters are required."
     exit_abnormal
 fi
-
 if [ "${PROTEOME}" = true ]; then
     if [ -z "${REF}" ]; then
         echo "Error: -r parameter is required when -p is present."
@@ -84,6 +95,7 @@ if [ "${PROTEOME}" = true ]; then
     fi
 fi
 
+# Window sliding funtion
 process_sequence() {
     local sequence="${1}"
     local window_size=10
@@ -96,6 +108,7 @@ process_sequence() {
     done
 }
 
+# -------------------------------- main -------------------------------- #
 echo -e "\033[46;37m >> STEP 1: Extracting HLA alleles... \033[0m"
 mkdir -p "${OUTPUT}/allele_summary"
 
@@ -107,8 +120,7 @@ if [ "${PROTEOME}" = true ]; then
     # Remove duplicates in reference fasta files
     cat "${REF}"/*.fasta > "${REF}/reference.fa"
     OUT_CDHIT="${REF}/reference_rmdup.fa"
-    LOG_CDHIT="${OUTPUT}/cdhit.log"
-    cd-hit -i "${REF}/reference.fa" -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > "${LOG_CDHIT}"
+    cd-hit -i "${REF}/reference.fa" -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > /dev/null 2>&1
 
     mkdir -p "${OUTPUT}/tmp"
     ls "${INPUT}" | grep "\.d$" | sed 's/\(\.d\)//g' | awk '!a[$0]++' | while read -r SAMPLE; do
@@ -637,7 +649,7 @@ if [ "${PROTEOME}" = true ]; then
 
     echo -e "\033[46;37m >> STEP 3: Extracting peptide sequences... \033[0m"
     Rscript "${BACNEO}/pep_count.R" "${OUTPUT}" "${BACNEO}"
-    sed -i 's/\"//g' "${OUTPUT}/sequences.txt"
+    sed -i "s/\\\"//g" "${OUTPUT}/sequences.txt"
 
     echo -e "\033[46;37m >> STEP 4: Predicting HLA-peptide affinities... \033[0m"
     while read -r TYPE; do
@@ -645,8 +657,7 @@ if [ "${PROTEOME}" = true ]; then
             echo "---------------------------------------------------------------------"
             echo "Predicting affinity for ${SAMPLE} - HLA allele ${TYPE}..."
             OUT_NETMHC="${OUTPUT}/${SAMPLE}_${TYPE}.xls"
-            LOG_NETMHC="${OUTPUT}/${SAMPLE}_${TYPE}.log"
-            netMHCpan -p "${OUTPUT}/sequences.txt" -BA -xls -a "${TYPE}" -xlsfile "${OUT_NETMHC}" > "${LOG_NETMHC}"
+            netMHCpan -p "${OUTPUT}/sequences.txt" -BA -xls -a "${TYPE}" -xlsfile "${OUT_NETMHC}" > /dev/null 2>&1
         done
     done < "${OUTPUT}/hla_summary.txt"
 
@@ -674,7 +685,7 @@ elif [ "${PROTEOME}" = false ]; then
         checkm2 predict --threads "${THREADS}" \
             --input "${OUTPUT}/na_fastas/${SAMPLE}_bacreads.fasta" \
             --output-directory "${OUTPUT}/checkm2_predict/${SAMPLE}" \
-            --database_path "${DB}/CheckM2_database/uniref100.KO.1.dmnd"
+            --database_path "${DB}/CheckM2_database/uniref100.KO.1.dmnd" > /dev/null 2>&1
     done
 
     echo -e "\033[46;37m >> STEP 4: Predicting HLA-peptide affinities... \033[0m"
@@ -682,18 +693,15 @@ elif [ "${PROTEOME}" = false ]; then
     
     ls "${INPUT}" | while read -r SAMPLE; do
         echo "====================================================================="
-        echo "---------------------------------------------------------------------"
         echo "Processing sample ${SAMPLE}: Removing duplicates in fasta files of bacterial peptide..."
         
-        mkdir -p "${OUTPUT}/affinity/${SAMPLE}"
-        OUT_CDHIT="${OUTPUT}/aas/${SAMPLE}_bacpep_OUT_CDHIT.fa"
-        LOG_CDHIT="${OUTPUT}/aas/${SAMPLE}_OUT_CDHIT.log"
-        INPUT_PEP="${OUTPUT}/aas/${SAMPLE}_bacpep.txt"
+        OUT_CDHIT="${OUTPUT}/aas/${SAMPLE}_bacpep_cdhit.fa"
         
         cd-hit -i "${OUTPUT}/checkm2_predict/${SAMPLE}/protein_files/${SAMPLE}_bacreads.faa" \
-            -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > "${LOG_CDHIT}"
+            -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > /dev/null 2>&1
 
         # Remove sequences without start codon and ribosome binding sites
+        INPUT_PEP="${OUTPUT}/aas/${SAMPLE}_bacpep.txt"
         awk '/^>/ {header=$0; getline seq; if (header !~ /rbs_motif=None/ && header !~ /start_type=Edge/) print seq}' \
             "${OUT_CDHIT}" > "${INPUT_PEP}"
         
@@ -720,7 +728,7 @@ elif [ "${PROTEOME}" = false ]; then
         LINES_PER_THREAD=$(( (TOTAL_LINES + THREADS - 1) / THREADS ))
 
         split -l "${LINES_PER_THREAD}" "${OUT_WINDOW}" "${TMP_DIR}/split_"
-        
+        mkdir -p "${OUTPUT}/affinity/${SAMPLE}"
         while read -r TYPE; do
             echo "---------------------------------------------------------------------"
             echo "Predicting affinity for ${SAMPLE} - HLA allele ${TYPE}..."
@@ -728,8 +736,7 @@ elif [ "${PROTEOME}" = false ]; then
             for split_file in "${TMP_DIR}"/split_*; do
                 (
                     OUT_NETMHC="${OUTPUT}/affinity/${SAMPLE}/${SAMPLE}_${TYPE}_$(basename "${split_file}").xls"
-                    LOG_NETMHC="${OUTPUT}/affinity/${SAMPLE}/${SAMPLE}_${TYPE}_$(basename "${split_file}").log"
-                    netMHCpan -p "${split_file}" -BA -xls -a "${TYPE}" -xlsfile "${OUT_NETMHC}" > "${LOG_NETMHC}"
+                    netMHCpan -p "${split_file}" -BA -xls -a "${TYPE}" -xlsfile "${OUT_NETMHC}" > /dev/null 2>&1
                 ) &
                 
                 while [ $(jobs -r | wc -l) -ge "${THREADS}" ]; do
@@ -741,8 +748,8 @@ elif [ "${PROTEOME}" = false ]; then
             echo "---------------------------------------------------------------------"
             echo "Combining multi-threads results..."
             SAFE_TYPE=$(echo "${TYPE}" | tr ':' '_')
-            OUTPUT_FILE="${OUTPUT}/affinity/${SAMPLE}/NonFiltRBS_${SAMPLE}_${SAFE_TYPE}.xls"
-            PATTERN="${OUTPUT}/affinity/${SAMPLE}/NonFiltRBS_${SAMPLE}_${TYPE}_split_*"
+            OUTPUT_FILE="${OUTPUT}/affinity/${SAMPLE}/${SAMPLE}_${SAFE_TYPE}.xls"
+            PATTERN="${OUTPUT}/affinity/${SAMPLE}/${SAMPLE}_${TYPE}_split_*"
 
             FIRST_RESULT=$(ls ${PATTERN} 2>/dev/null | head -n 1)
 
@@ -750,7 +757,8 @@ elif [ "${PROTEOME}" = false ]; then
                 mkdir -p "$(dirname "${OUTPUT_FILE}")"
                 head -n 1 "${FIRST_RESULT}" > "${OUTPUT_FILE}"
                 
-                for result in ${PATTERN}; do
+                for result in ${PATTERN}
+                do
                     if [ -f "${result}" ]; then
                         tail -n +2 "${result}" >> "${OUTPUT_FILE}"
                         rm -f "${result}"
@@ -768,5 +776,5 @@ fi
 
 ###################################################################################
 # Pending revision
-echo -e "\033[46;37m Extracting sample-specific strong and weak binders... \033[0m"
-Rscript "${BACNEO}/affinity_summary.R" "${OUTPUT}"
+#echo -e "\033[46;37m Extracting sample-specific strong and weak binders... \033[0m"
+#Rscript "${BACNEO}/affinity_summary.R" "${OUTPUT}"
