@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define default values
-PROTEOME=""
+PROTEOME=false
 INPUT=""
 REF=""
 DB=""
@@ -32,12 +32,12 @@ print_logo() {
 }
 
 usage() {
-    echo "Usage: bacp [-p PROTEOME] [ -i INPUT ] [ -r REF ] [ -d DB ] [ -a ALLELE ] [ -o OUTPUT ] [ -t THREADS ]
-    -p Whether your datasets encompassing proteome data, 'y' for yes, 'n' for no. 
+    echo "Usage: bacp [-p] [ -i INPUT ] [ -r REF ] [ -d DB ] [ -a ALLELE ] [ -o OUTPUT ] [ -t THREADS ]
+    -p Flag indicating proteome data analysis. If present, proteome workflow will be used.
     -i Input directory path:
-       when -p equals to 'y', please input MS data with '.d' format; 
-       when -p equals to 'n', please input the directory path of bacc output.
-    -r Directory path containing all reference proteome fasta files of your interested bacterial species. 
+       When -p is present, please input MS data with '.d' format; 
+       When -p is not present, please input the directory path of bacc output.
+    -r Directory path containing reference proteome fasta files (required only when -p is present).
        You could download them from UniProt (https://www.uniprot.org/), and put them into the path you input here.
        It is highly recommended to make a clean directory, containing these fasta files only.
     -d The directory path of your datasebases generated through bacNeo2 --download-db.
@@ -45,8 +45,7 @@ usage() {
     -o Output directory path.
     -t Number of threads (Default threads = 16).
     Note: Before running bacp, be sure you have run bach to identify HLA alleles for each patient first.
-    If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample.
-    If you input 'n' in parameter -p, -i and -r should be the same file." 1>&2 
+    If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample." 1>&2 
 }
 
 exit_abnormal() {
@@ -56,7 +55,7 @@ exit_abnormal() {
 
 while getopts ":p:i:r:d:a:o:t:" options; do
     case "${options}" in
-        p) PROTEOME="${OPTARG}" ;;    
+        p) PROTEOME=true ;;    
         i) INPUT="${OPTARG}" ;;
         r) REF="${OPTARG}" ;;
         d) DB="${OPTARG}" ;;
@@ -72,6 +71,18 @@ while getopts ":p:i:r:d:a:o:t:" options; do
             ;;
     esac
 done
+
+if [ -z "${INPUT}" ] || [ -z "${DB}" ] || [ -z "${ALLELE}" ] || [ -z "${OUTPUT}" ]; then
+    echo "Error: -i, -d, -a, and -o parameters are required."
+    exit_abnormal
+fi
+
+if [ "${PROTEOME}" = true ]; then
+    if [ -z "${REF}" ]; then
+        echo "Error: -r parameter is required when -p is present."
+        exit_abnormal
+    fi
+fi
 
 process_sequence() {
     local sequence="${1}"
@@ -92,7 +103,7 @@ ls "${ALLELE}" | while read -r SAMPLE; do
     find "${ALLELE}/${SAMPLE}" -name "HLA-*.txt" | xargs awk '/HLA gene/ {split($0,a,": "); gene=a[2]} /Type [12]/ {split($3,b,":"); print gene b[1]":"b[2]}' > "${OUTPUT}/allele_summary/${SAMPLE}.txt"
 done
 
-if [ "${PROTEOME}" = "y" ]; then
+if [ "${PROTEOME}" = true ]; then
     # Remove duplicates in reference fasta files
     cat "${REF}"/*.fasta > "${REF}/reference.fa"
     OUT_CDHIT="${REF}/reference_rmdup.fa"
@@ -629,13 +640,17 @@ if [ "${PROTEOME}" = "y" ]; then
     sed -i 's/\"//g' "${OUTPUT}/sequences.txt"
 
     echo -e "\033[46;37m >> STEP 4: Predicting HLA-peptide affinities... \033[0m"
-    while read -r type; do
+    while read -r TYPE; do
         ls "${ALLELE}" | while read -r SAMPLE; do
-            netMHCpan -p "${OUTPUT}/sequences.txt" -BA -xls -a "${type}" -xlsfile "${OUTPUT}/${SAMPLE}_${type}.xls"
+            echo "---------------------------------------------------------------------"
+            echo "Predicting affinity for ${SAMPLE} - HLA allele ${TYPE}..."
+            OUT_NETMHC="${OUTPUT}/${SAMPLE}_${TYPE}.xls"
+            LOG_NETMHC="${OUTPUT}/${SAMPLE}_${TYPE}.log"
+            netMHCpan -p "${OUTPUT}/sequences.txt" -BA -xls -a "${TYPE}" -xlsfile "${OUT_NETMHC}" > "${LOG_NETMHC}"
         done
     done < "${OUTPUT}/hla_summary.txt"
 
-elif [ "${PROTEOME}" = "n" ]; then
+elif [ "${PROTEOME}" = false ]; then
     echo -e "\033[46;37m >> STEP 2: Converting taxonomy reads into fasta files... \033[0m"  
     mkdir -p "${OUTPUT}/na_fastas"
     
@@ -706,15 +721,15 @@ elif [ "${PROTEOME}" = "n" ]; then
 
         split -l "${LINES_PER_THREAD}" "${OUT_WINDOW}" "${TMP_DIR}/split_"
         
-        while read -r type; do
+        while read -r TYPE; do
             echo "---------------------------------------------------------------------"
-            echo "Predicting affinity for ${SAMPLE} - HLA allele ${type}..."
+            echo "Predicting affinity for ${SAMPLE} - HLA allele ${TYPE}..."
             
             for split_file in "${TMP_DIR}"/split_*; do
                 (
-                    OUT_NETMHC="${OUTPUT}/affinity/${SAMPLE}/${SAMPLE}_${type}_$(basename "${split_file}").xls"
-                    LOG_NETMHC="${OUTPUT}/affinity/${SAMPLE}/${SAMPLE}_${type}_$(basename "${split_file}").log"
-                    netMHCpan -p "${split_file}" -BA -xls -a "${type}" -xlsfile "${OUT_NETMHC}" > "${LOG_NETMHC}"
+                    OUT_NETMHC="${OUTPUT}/affinity/${SAMPLE}/${SAMPLE}_${TYPE}_$(basename "${split_file}").xls"
+                    LOG_NETMHC="${OUTPUT}/affinity/${SAMPLE}/${SAMPLE}_${TYPE}_$(basename "${split_file}").log"
+                    netMHCpan -p "${split_file}" -BA -xls -a "${TYPE}" -xlsfile "${OUT_NETMHC}" > "${LOG_NETMHC}"
                 ) &
                 
                 while [ $(jobs -r | wc -l) -ge "${THREADS}" ]; do
@@ -725,9 +740,9 @@ elif [ "${PROTEOME}" = "n" ]; then
 
             echo "---------------------------------------------------------------------"
             echo "Combining multi-threads results..."
-            SAFE_TYPE=$(echo "${type}" | tr ':' '_')
+            SAFE_TYPE=$(echo "${TYPE}" | tr ':' '_')
             OUTPUT_FILE="${OUTPUT}/affinity/${SAMPLE}/NonFiltRBS_${SAMPLE}_${SAFE_TYPE}.xls"
-            PATTERN="${OUTPUT}/affinity/${SAMPLE}/NonFiltRBS_${SAMPLE}_${type}_split_*"
+            PATTERN="${OUTPUT}/affinity/${SAMPLE}/NonFiltRBS_${SAMPLE}_${TYPE}_split_*"
 
             FIRST_RESULT=$(ls ${PATTERN} 2>/dev/null | head -n 1)
 
@@ -751,5 +766,7 @@ else
     echo "Wrong parameter -p!"
 fi
 
+###################################################################################
+# Pending revision
 echo -e "\033[46;37m Extracting sample-specific strong and weak binders... \033[0m"
 Rscript "${BACNEO}/affinity_summary.R" "${OUTPUT}"
