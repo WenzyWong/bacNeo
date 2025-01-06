@@ -36,9 +36,9 @@ usage() {                                 # Function: Print a help message.
   -i Input directory path:
      when -p equals to 'y', please input MS data with '.d' format; 
      when -p equals to 'n', please input the directory path of bacc output.
-  -r Reference file path. 
-     You could download the reference proteome fasta data of human and interested bacterial species from UniProt (https://www.uniprot.org/). 
-     Using 'cat *.fasta > reference.fasta' and 'cd-hit' to remove replicates are recommended pre-processing steps. 
+  -r Directory path containing all reference proteome fasta files of your interested bacterial species. 
+     You could download them from UniProt (https://www.uniprot.org/), and put them into the path you input here.
+     It is highly recommended to make a clean directory, containing these fasta files only.
   -d The directory path of your datasebases generated through bacNeo2 --download-db.
   -a Directory path of bach results, including sample-name specific folders. 
   -o Output directory path.
@@ -87,25 +87,47 @@ while getopts ":p:i:r:d:a:o:t:" options; do # Loop: Get the next option;
   esac
 done
 
+# Function to process single sequence with sliding window
+process_sequence() {
+    local sequence=$1
+    local window_size=10
+    local step_size=3
+    local seq_length=${#sequence}
+    
+    # Calculate number of windows
+    local max_start=$((seq_length - window_size))
+    
+    # Process each window position
+    for ((i=0; i<=max_start; i+=step_size)); do
+        echo "${sequence:$i:$window_size}"
+    done
+}
+
 echo -e "\033[46;37m >> STEP 1: Extracting HLA alleles... \033[0m"
 mkdir -p ${OUTPUT}"/allele_summary"
-ls ${ALLELE} | while read sample
+ls ${ALLELE} | while read SAMPLE
 do
-    find ${ALLELE}/${sample} -name "HLA-*.txt" | xargs awk '/HLA gene/ {split($0,a,": "); gene=a[2]} /Type [12]/ {split($3,b,":"); print gene b[1]":"b[2]}' > ${OUTPUT}"/allele_summary/"${sample}.txt
+    find ${ALLELE}/${SAMPLE} -name "HLA-*.txt" | xargs awk '/HLA gene/ {split($0,a,": "); gene=a[2]} /Type [12]/ {split($3,b,":"); print gene b[1]":"b[2]}' > ${OUTPUT}"/allele_summary/"${SAMPLE}.txt
 done
 
 if  [ ${PROTEOME} == "y" ]
 then
+    # Remove duplicates in reference fasta files
+    cat ${REF}/*.fasta > ${REF}/reference.fa
+    OUT_CDHIT=${REF}/reference_rmdup.fa
+    LOG_CDHIT=${OUTPUT}/cdhit.log
+    cd-hit -i ${REF}/reference.fa -o "$OUT_CDHIT" -c 0.9 -aS 0.9 -d 0 > "$LOG_CDHIT"
+        
     mkdir ${OUTPUT}"/tmp"
-    ls ${INPUT} | grep ".d$" | sed 's/\(\.d\)//g' | awk '!a[$0]++' | while read sample
+    ls ${INPUT} | grep ".d$" | sed 's/\(\.d\)//g' | awk '!a[$0]++' | while read SAMPLE
     do
-        mkdir ${OUTPUT}/${sample}
-        fileXML=${OUTPUT}"/tmp/"${sample}".xml"
+        mkdir ${OUTPUT}/${SAMPLE}
+        fileXML=${OUTPUT}"/tmp/"${SAMPLE}".xml"
         echo "<?xml version=\"1.0\" encoding=\"utf-8\"?>
     <MaxQuantParams xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">
         <fastaFiles>
             <FastaFileInfo>
-                <fastaFilePath>${REF}</fastaFilePath>
+                <fastaFilePath>${OUT_CDHIT}</fastaFilePath>
                 <identifierParseRule>>.*\|(.*)\|</identifierParseRule>
                 <descriptionParseRule>>(.*)</descriptionParseRule>
                 <taxonomyParseRule></taxonomyParseRule>
@@ -236,7 +258,7 @@ then
         <emailAddress></emailAddress>
         <smtpHost></smtpHost>
         <emailFromAddress></emailFromAddress>
-        <fixedCombinedFolder>${OUTPUT}/${sample}</fixedCombinedFolder>
+        <fixedCombinedFolder>${OUTPUT}/${SAMPLE}</fixedCombinedFolder>
         <fullMinMz>-1.79769313486232E+308</fullMinMz>
         <fullMaxMz>1.79769313486232E+308</fullMaxMz>
         <sendEmail>False</sendEmail>
@@ -248,10 +270,10 @@ then
         <useDotNetCore>True</useDotNetCore>
         <profilePerformance>False</profilePerformance>
         <filePaths>
-            <string>${INPUT}/${sample}.d</string>
+            <string>${INPUT}/${SAMPLE}.d</string>
             </filePaths>
         <experiments>
-            <string>${sample}</string>
+            <string>${SAMPLE}</string>
         </experiments>
         <fractions>
             <short>32767</short>
@@ -615,7 +637,7 @@ then
             </fragmentationParams>
         </fragmentationParamsArray>
     </MaxQuantParams>" > ${fileXML}
-    echo -e "\033[46;37m >> STEP 2: Running maxquant to identify peptides for sample ${sample}... \033[0m"
+    echo -e "\033[46;37m >> STEP 2: Running maxquant to identify peptides for sample ${SAMPLE}... \033[0m"
     maxquant ${fileXML}
     rm ${fileXML}
     done
@@ -628,48 +650,118 @@ then
     echo -e "\033[46;37m >> STEP 4: Predicting HLA-peptide affinities... \033[0m"
     cat ${OUTPUT}"/hla_summary.txt" | while read type
     do
-        ls ${ALLELE} | while read sample
+        ls ${ALLELE} | while read SAMPLE
         do
-            netMHCpan -p ${OUTPUT}"/sequences.txt" -BA -xls -a ${type} -xlsfile ${OUTPUT}/${sample}'_'${type}.xls
+            netMHCpan -p ${OUTPUT}"/sequences.txt" -BA -xls -a ${type} -xlsfile ${OUTPUT}/${SAMPLE}'_'${type}.xls
         done
     done
 elif [ ${PROTEOME} == "n" ]
 then
     echo -e "\033[46;37m >> STEP 2: Converting taxonomy reads into fasta files... \033[0m"  
     mkdir -p ${OUTPUT}"/na_fastas"
-    ls ${INPUT} | while read sample
+    ls ${INPUT} | while read SAMPLE
     do
         echo "====================================================================="
-        echo "Processing sample: ${sample}..."
-        python ${BACNEO}"/utils/bacp_taxon2fasta.py" -k ${INPUT}/${sample}/${sample}".KRAKEN" -s1 ${INPUT}/${sample}/${sample}"_unmap_R1.fq" -s2 ${INPUT}/${sample}/${sample}"_unmap_R2.fq" -o ${OUTPUT}"/na_fastas/"${sample}"_bacreads.fasta"
+        echo "Processing sample: ${SAMPLE}..."
+        python ${BACNEO}"/utils/bacp_taxon2fasta.py" -k ${INPUT}/${SAMPLE}/${SAMPLE}".KRAKEN" -s1 ${INPUT}/${SAMPLE}/${SAMPLE}"_unmap_R1.fq" -s2 ${INPUT}/${SAMPLE}/${SAMPLE}"_unmap_R2.fq" -o ${OUTPUT}"/na_fastas/"${SAMPLE}"_bacreads.fasta"
     done
 
     echo -e "\033[46;37m >> STEP 3: Removing potential contaminants and predicting bacterial peptides... \033[0m"
     mkdir -p ${OUTPUT}"/checkm2_predict/"
-    ls ${INPUT} | while read sample
+    ls ${INPUT} | while read SAMPLE
     do
         echo "====================================================================="
-        echo "Processing sample: ${sample}..."
-        mkdir -p ${OUTPUT}"/checkm2_predict/"${sample}
-        checkm2 predict --threads ${THREADS} --input ${OUTPUT}"/na_fastas/"${sample}"_bacreads.fasta" --output-directory ${OUTPUT}"/checkm2_predict/"${sample} --database_path ${DB}"/CheckM2_database/uniref100.KO.1.dmnd"
+        echo "Processing sample: ${SAMPLE}..."
+        mkdir -p ${OUTPUT}"/checkm2_predict/"${SAMPLE}
+        checkm2 predict --threads ${THREADS} --input ${OUTPUT}"/na_fastas/"${SAMPLE}"_bacreads.fasta" --output-directory ${OUTPUT}"/checkm2_predict/"${SAMPLE} --database_path ${DB}"/CheckM2_database/uniref100.KO.1.dmnd"
     done
 
     echo -e "\033[46;37m >> STEP 4: Predicting HLA-peptide affinities... \033[0m"
     mkdir -p ${OUTPUT}"/aas"
     mkdir -p ${OUTPUT}"/affinity"
-    ls ${INPUT} | while read sample
+    ls ${INPUT} | while read SAMPLE
     do
         echo "====================================================================="
-        echo "Processing sample: ${sample}..."
-        mkdir -p ${OUTPUT}"/affinity/"${sample}
-        cd-hit -i ${OUTPUT}"/checkm2_predict/"${sample}"/protein_files/"${sample}"_bacreads.faa" -o ${OUTPUT}"/aas/"${sample}"_bacpep_cdhit.fa" -c 0.9 -aS 0.9 -d 0
-        awk '/^>/ {header=$0; getline seq; if (header !~ /rbs_motif=None/) print seq}' \
-            ${OUTPUT}"/aas/"${sample}"_bacpep_cdhit.fa" \
-            > ${OUTPUT}"/aas/"${sample}"_bacpep.txt"
-        cat ${OUTPUT}"/allele_summary/"${sample}".txt" | while read type
+        echo "---------------------------------------------------------------------"
+        echo "Processing sample ${SAMPLE}: Removing duplicates in fasta files of bacteiral peptide..."
+        mkdir -p ${OUTPUT}"/affinity/"${SAMPLE}
+        OUT_CDHIT=${OUTPUT}"/aas/"${SAMPLE}"_bacpep_OUT_CDHIT.fa"
+        LOG_CDHIT=${OUTPUT}"/aas/"${SAMPLE}"_OUT_CDHIT.log"
+        cd-hit -i ${OUTPUT}"/checkm2_predict/"${SAMPLE}"/protein_files/"${SAMPLE}"_bacreads.faa" -o "$OUT_CDHIT" -c 0.9 -aS 0.9 -d 0 > "$LOG_CDHIT"
+        INPUT_PEP=${OUTPUT}"/aas/"${SAMPLE}"_bacpep.txt"
+        # Remove sequences without start codon and ribosome binding sites
+        awk '/^>/ {header=$0; getline seq; if (header !~ /rbs_motif=None/ && header !~ /start_type=Edge/) print seq}' \
+            "$OUT_CDHIT" > "$INPUT_PEP"
+        
+        echo "---------------------------------------------------------------------"
+        echo "Processing sample ${SAMPLE}: Window sliding..."
+        OUT_WINDOW="${INPUT_PEP%.*}_windowed.txt"
+        TMP_WINDOW="${OUT_WINDOW}.temp"
+
+        # Process each sequence in the input file
+        cat ${INPUT_PEP} | while read line
         do
-            netMHCpan -p ${OUTPUT}"/aas/"${sample}"_bacpep.txt" -BA -xls -a ${type} -xlsfile ${OUTPUT}"/affinity/"${sample}/${sample}"_"${type}".xls"
+            [ -z "$line" ] && continue
+            process_sequence "$line" >> "$TMP_WINDOW"
         done
+        awk 'length($0) >= 5' "$TMP_WINDOW" > "$OUT_WINDOW"
+        rm "$INPUT_PEP"
+
+        echo "Window sliding completed. Output saved to: $OUT_WINDOW"
+
+        TMP_DIR=${OUTPUT}"/tmp_split_${SAMPLE}"
+        mkdir -p ${TMP_DIR}
+
+        TOTAL_LINES=$(wc -l < ${OUT_WINDOW})
+        LINES_PER_THREAD=$(( (TOTAL_LINES + THREADS - 1) / THREADS ))
+
+        split -l ${LINES_PER_THREAD} ${OUT_WINDOW} ${TMP_DIR}/split_
+        
+        cat ${OUTPUT}"/allele_summary/"${SAMPLE}".txt" | while read type
+        do
+            echo "---------------------------------------------------------------------"
+            echo "Predicting affinity for ${SAMPLE} - HLA allele ${type}..."
+            
+            for split_file in ${TMP_DIR}/split_*
+            do
+                (
+                    OUT_NETMHC=${OUTPUT}"/affinity/"${SAMPLE}/${SAMPLE}"_"${type}"_$(basename ${split_file}).xls"
+                    LOG_NETMHC=${OUTPUT}"/affinity/"${SAMPLE}/${SAMPLE}"_"${type}"_$(basename ${split_file}).log"
+                    netMHCpan -p ${split_file} -BA -xls -a ${type} -xlsfile ${OUT_NETMHC} > ${LOG_NETMHC}
+                ) &
+                
+                while [ $(jobs -r | wc -l) -ge ${THREADS} ]; do
+                    sleep 1
+                done
+            done
+            # Wait till all netMHCpan processes end
+            wait
+
+            echo "---------------------------------------------------------------------"
+            echo "Combining multi-threads results..."
+            SAFE_TYPE=$(echo "${type}" | tr ':' '_')
+            OUTPUT_FILE="${OUTPUT}/affinity/${SAMPLE}/NonFiltRBS_${SAMPLE}_${SAFE_TYPE}.xls"
+            PATTERN="${OUTPUT}/affinity/${SAMPLE}/NonFiltRBS_${SAMPLE}_${type}_split_*"
+
+            FIRST_RESULT=$(ls ${PATTERN} 2>/dev/null | head -n 1)
+
+            if [ -n "${FIRST_RESULT}" ]; then
+                mkdir -p "$(dirname "${OUTPUT_FILE}")"
+                
+                head -n 1 "${FIRST_RESULT}" > "${OUTPUT_FILE}"
+                
+                for result in ${PATTERN}
+                do
+                    if [ -f "${result}" ]; then
+                        tail -n +2 "${result}" >> "${OUTPUT_FILE}"
+                        rm -f "${result}"
+                    fi
+                done
+            else
+                echo "Warning: No split files found matching pattern: ${PATTERN}"
+            fi
+        done
+        rm -rf ${TMP_DIR}
     done
 else
     echo "Wrong parameter -p!"
