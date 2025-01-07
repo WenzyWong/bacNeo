@@ -104,7 +104,24 @@ Additionally, if you want to run `bacp`, you need to manually install [netMHCpan
         If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample.
     ```
 
-- `bacp` can detect bacterial peptides from proteome datasets and predict HLA-peptide affinities based on results from `bach`. The reference should be provided by users. If no proteome dataset available, `bacp` could also use high abundant species from the results of `bacc`, and predict HLA-peptide affinities as well. See usage: `bacp -h`.
+- `bacp` can detect bacterial peptides from proteome datasets and predict HLA-peptide affinities based on results from `bach`. The reference should be provided by users. It is recommended to download reference protome from [UniProt](https://www.uniprot.org/). If no proteome dataset is available, `bacp` could also use bacterial reads extracted by `bacc`, and predict HLA-peptide affinities as well. See usage: `bacp -h`.
+
+    ```
+    Usage: bacp [-p] [ -i INPUT ] [ -r REF ] [ -d DB ] [ -a ALLELE ] [ -o OUTPUT ] [ -t THREADS ]
+        -p Flag indicating proteome data analysis. If present, proteome workflow will be used.
+        -i Input directory path:
+        When -p is present, please input MS data with '.d' format;
+        When -p is not present, please input the directory path of bacc output.
+        -r Directory path containing reference proteome fasta files (required only when -p is present).
+        You could download them from UniProt (https://www.uniprot.org/), and put them into the path you input here.
+        It is highly recommended to make a clean directory, containing these fasta files only.
+        -d The directory path of your datasebases generated through bacNeo2 --download-db.
+        -a Directory path of bach results, including sample-name specific folders.
+        -o Output directory path.
+        -t Number of threads (Default threads = 16).
+    Note: Before running bacp, be sure you have run bach to identify HLA alleles for each patient first.
+    If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample.
+    ```
 
 ## Requirements
 
