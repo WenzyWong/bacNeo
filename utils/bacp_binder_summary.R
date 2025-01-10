@@ -1,6 +1,13 @@
+#################################################################################
+# Rscript for extracting strong and weak binders from netMHCpan output files
+
+# Yunzhe WANG, yunzhewang24@m.fudan.edu.cn
+# Updated: 2025-01-10
+#################################################################################
+library(dplyr)
+
 args = commandArgs(trailingOnly=TRUE)
 OUTPUT <- args[1]
-library(dplyr)
 
 hla_files <- list.files(path = OUTPUT, pattern = "HLA-", recursive = T)
 
@@ -13,6 +20,7 @@ for (i in 1:length(hla_files)) {
   colnames(affinity_table) <- c("Pos", "Peptide_ID", "core", "icore", 
                                 "EL_score", "EL_Rank", "BA_score", 
                                 "BA_Rank", "Ave", "NB", "N")
+  
   cols_to_keep <- c("Peptide_ID", "icore", "BA_score", "BA_Rank")
   tmp_strong <- affinity_table %>%
     filter(BA_Rank <= 0.5) %>%
