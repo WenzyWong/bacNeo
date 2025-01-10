@@ -108,12 +108,105 @@ process_sequence() {
     done
 }
 
+# Using multi-threads to predict MHC-peptide binding affinity
+process_peptides() {
+    # Required parameters
+    local SAMPLE="$1"          # Sample identifier
+    local INPUT_PEP="$2"       # Input peptide file
+    local OUTPUT="$3"          # Output directory path
+    local THREADS="$4"         # Number of threads to use
+
+    # Validate required parameters
+    if [[ -z "${SAMPLE}" || -z "${INPUT_PEP}" || -z "${OUTPUT}" || -z "${THREADS}" ]]; then
+        echo "Error: Missing required parameters"
+        echo "Usage: process_peptides SAMPLE INPUT_PEP OUTPUT THREADS"
+        return 1
+    fi
+
+    # Step 1: Window sliding
+    echo "---------------------------------------------------------------------"
+    echo "Processing sample ${SAMPLE}: Window sliding..."
+    local OUT_WINDOW="${INPUT_PEP%.*}_windowed.txt"
+    local TMP_WINDOW="${OUT_WINDOW}.temp"
+
+    # Process each sequence in the input file
+    while read -r line; do
+        [ -z "${line}" ] && continue
+        process_sequence "${line}" >> "${TMP_WINDOW}"
+    done < "${INPUT_PEP}"
+    
+    # Filter sequences by length and clean up
+    awk 'length($0) >= 5' "${TMP_WINDOW}" > "${OUT_WINDOW}"
+    rm "${INPUT_PEP}"
+    echo "Window sliding completed. Output saved to: ${OUT_WINDOW}"
+
+    # Step 2: Split file for parallel processing
+    local TMP_DIR="${OUTPUT}/tmp_split_${SAMPLE}"
+    mkdir -p "${TMP_DIR}"
+
+    # Calculate lines per thread for even distribution
+    local TOTAL_LINES=$(wc -l < "${OUT_WINDOW}")
+    local LINES_PER_THREAD=$(( (TOTAL_LINES + THREADS - 1) / THREADS ))
+
+    # Split input file into chunks for parallel processing
+    split -l "${LINES_PER_THREAD}" "${OUT_WINDOW}" "${TMP_DIR}/split_"
+
+    # Step 3: Process each HLA type
+    mkdir -p "${OUTPUT}/04_affinity_with_HLAs/${SAMPLE}"
+    while read -r TYPE; do
+        echo "---------------------------------------------------------------------"
+        echo "Predicting 04_affinity_with_HLAs for ${SAMPLE} - HLA allele ${TYPE}..."
+        
+        # Process each split file in parallel
+        for split_file in "${TMP_DIR}"/split_*; do
+            (
+                local OUT_NETMHC="${OUTPUT}/04_affinity_with_HLAs/${SAMPLE}/${SAMPLE}_${TYPE}_$(basename "${split_file}").xls"
+                netMHCpan -p "${split_file}" -BA -xls -a "${TYPE}" -xlsfile "${OUT_NETMHC}" > /dev/null 2>&1
+            ) &
+            
+            # Control number of concurrent jobs
+            while [ $(jobs -r | wc -l) -ge "${THREADS}" ]; do
+                sleep 1
+            done
+        done
+        wait
+
+        # Step 4: Combine results from all threads
+        echo "---------------------------------------------------------------------"
+        echo "Combining multi-threads results..."
+        local SAFE_TYPE=$(echo "${TYPE}" | tr ':' '_')
+        local OUTPUT_FILE="${OUTPUT}/04_affinity_with_HLAs/${SAMPLE}/${SAMPLE}_${SAFE_TYPE}.xls"
+        local PATTERN="${OUTPUT}/04_affinity_with_HLAs/${SAMPLE}/${SAMPLE}_${TYPE}_split_*"
+
+        local FIRST_RESULT=$(ls ${PATTERN} 2>/dev/null | head -n 1)
+
+        if [ -n "${FIRST_RESULT}" ]; then
+            mkdir -p "$(dirname "${OUTPUT_FILE}")"
+            head -n 1 "${FIRST_RESULT}" > "${OUTPUT_FILE}"
+            
+            # Append content from all split files and clean up
+            for result in ${PATTERN}
+            do
+                if [ -f "${result}" ]; then
+                    tail -n +2 "${result}" >> "${OUTPUT_FILE}"
+                    rm -f "${result}"
+                fi
+            done
+        else
+            echo "Warning: No split files found matching pattern: ${PATTERN}"
+        fi
+    done < "${OUTPUT}/00_allele_summary/${SAMPLE}.txt"
+
+    # Clean up temporary directory
+    rm -rf "${TMP_DIR}"
+}
+
 # -------------------------------- main -------------------------------- #
 echo -e "\033[46;37m >> STEP 1: Extracting HLA alleles... \033[0m"
-mkdir -p "${OUTPUT}/allele_summary"
+mkdir -p "${OUTPUT}/00_allele_summary"
 
 ls "${ALLELE}" | while read -r SAMPLE; do
-    find "${ALLELE}/${SAMPLE}" -name "HLA-*.txt" | xargs awk '/HLA gene/ {split($0,a,": "); gene=a[2]} /Type [12]/ {split($3,b,":"); print gene b[1]":"b[2]}' > "${OUTPUT}/allele_summary/${SAMPLE}.txt"
+    find "${ALLELE}/${SAMPLE}" -name "HLA-*.txt" | xargs awk '/HLA gene/ {split($0,a,": "); gene=a[2]} /Type [12]/ {split($3,b,":"); print gene b[1]":"b[2]}' > "${OUTPUT}/00_allele_summary/${SAMPLE}.txt"
 done
 
 if [ "${PROTEOME}" = true ]; then
@@ -568,7 +661,7 @@ if [ "${PROTEOME}" = true ]; then
                 <ConnectedScore2>1</ConnectedScore2>
                 <InternalFragments>False</InternalFragments>
                 <InternalFragmentWeight>1</InternalFragmentWeight>
-                <InternalFragmentAas>KRH</InternalFragmentAas>
+                <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
             </fragmentationParams>
             <fragmentationParams>
                 <Name>HCD</Name>
@@ -578,7 +671,7 @@ if [ "${PROTEOME}" = true ]; then
                 <ConnectedScore2>1</ConnectedScore2>
                 <InternalFragments>False</InternalFragments>
                 <InternalFragmentWeight>1</InternalFragmentWeight>
-                <InternalFragmentAas>KRH</InternalFragmentAas>
+                <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
             </fragmentationParams>
             <fragmentationParams>
                 <Name>ETD</Name>
@@ -588,7 +681,7 @@ if [ "${PROTEOME}" = true ]; then
                 <ConnectedScore2>1</ConnectedScore2>
                 <InternalFragments>False</InternalFragments>
                 <InternalFragmentWeight>1</InternalFragmentWeight>
-                <InternalFragmentAas>KRH</InternalFragmentAas>
+                <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
             </fragmentationParams>
             <fragmentationParams>
                 <Name>PQD</Name>
@@ -598,7 +691,7 @@ if [ "${PROTEOME}" = true ]; then
                 <ConnectedScore2>1</ConnectedScore2>
                 <InternalFragments>False</InternalFragments>
                 <InternalFragmentWeight>1</InternalFragmentWeight>
-                <InternalFragmentAas>KRH</InternalFragmentAas>
+                <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
             </fragmentationParams>
             <fragmentationParams>
                 <Name>ETHCD</Name>
@@ -608,7 +701,7 @@ if [ "${PROTEOME}" = true ]; then
                 <ConnectedScore2>1</ConnectedScore2>
                 <InternalFragments>False</InternalFragments>
                 <InternalFragmentWeight>1</InternalFragmentWeight>
-                <InternalFragmentAas>KRH</InternalFragmentAas>
+                <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
             </fragmentationParams>
             <fragmentationParams>
                 <Name>ETCID</Name>
@@ -618,7 +711,7 @@ if [ "${PROTEOME}" = true ]; then
                 <ConnectedScore2>1</ConnectedScore2>
                 <InternalFragments>False</InternalFragments>
                 <InternalFragmentWeight>1</InternalFragmentWeight>
-                <InternalFragmentAas>KRH</InternalFragmentAas>
+                <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
             </fragmentationParams>
             <fragmentationParams>
                 <Name>UVPD</Name>
@@ -628,7 +721,7 @@ if [ "${PROTEOME}" = true ]; then
                 <ConnectedScore2>1</ConnectedScore2>
                 <InternalFragments>False</InternalFragments>
                 <InternalFragmentWeight>1</InternalFragmentWeight>
-                <InternalFragmentAas>KRH</InternalFragmentAas>
+                <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
             </fragmentationParams>
             <fragmentationParams>
                 <Name>Unknown</Name>
@@ -638,7 +731,7 @@ if [ "${PROTEOME}" = true ]; then
                 <ConnectedScore2>1</ConnectedScore2>
                 <InternalFragments>False</InternalFragments>
                 <InternalFragmentWeight>1</InternalFragmentWeight>
-                <InternalFragmentAas>KRH</InternalFragmentAas>
+                <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
             </fragmentationParams>
         </fragmentationParamsArray>
     </MaxQuantParams>" > "${fileXML}"
@@ -652,18 +745,13 @@ if [ "${PROTEOME}" = true ]; then
     sed -i "s/\\\"//g" "${OUTPUT}/sequences.txt"
 
     echo -e "\033[46;37m >> STEP 4: Predicting HLA-peptide affinities... \033[0m"
-    while read -r TYPE; do
-        ls "${ALLELE}" | while read -r SAMPLE; do
-            echo "---------------------------------------------------------------------"
-            echo "Predicting affinity for ${SAMPLE} - HLA allele ${TYPE}..."
-            OUT_NETMHC="${OUTPUT}/${SAMPLE}_${TYPE}.xls"
-            netMHCpan -p "${OUTPUT}/sequences.txt" -BA -xls -a "${TYPE}" -xlsfile "${OUT_NETMHC}" > /dev/null 2>&1
-        done
-    done < "${OUTPUT}/hla_summary.txt"
+    ls "${ALLELE}" | while read -r SAMPLE; do
+        process_peptides "${SAMPLE}" "${OUTPUT}/sequences.txt" "${OUTPUT}" "${THREADS}"
+    done
 
 elif [ "${PROTEOME}" = false ]; then
     echo -e "\033[46;37m >> STEP 2: Converting taxonomy reads into fasta files... \033[0m"  
-    mkdir -p "${OUTPUT}/na_fastas"
+    mkdir -p "${OUTPUT}/01_na_fastas"
     
     ls "${INPUT}" | while read -r SAMPLE; do
         echo "====================================================================="
@@ -672,103 +760,41 @@ elif [ "${PROTEOME}" = false ]; then
             -k "${INPUT}/${SAMPLE}/${SAMPLE}.KRAKEN" \
             -s1 "${INPUT}/${SAMPLE}/${SAMPLE}_unmap_R1.fq" \
             -s2 "${INPUT}/${SAMPLE}/${SAMPLE}_unmap_R2.fq" \
-            -o "${OUTPUT}/na_fastas/${SAMPLE}_bacreads.fasta"
+            -o "${OUTPUT}/01_na_fastas/${SAMPLE}_bacreads.fasta"
     done
 
     echo -e "\033[46;37m >> STEP 3: Removing potential contaminants and predicting bacterial peptides... \033[0m"
-    mkdir -p "${OUTPUT}/checkm2_predict/"
+    mkdir -p "${OUTPUT}/02_predicted_protein/"
     
     ls "${INPUT}" | while read -r SAMPLE; do
         echo "====================================================================="
         echo "Processing sample: ${SAMPLE}..."
-        mkdir -p "${OUTPUT}/checkm2_predict/${SAMPLE}"
+        mkdir -p "${OUTPUT}/02_predicted_protein/${SAMPLE}"
         checkm2 predict --threads "${THREADS}" \
-            --input "${OUTPUT}/na_fastas/${SAMPLE}_bacreads.fasta" \
-            --output-directory "${OUTPUT}/checkm2_predict/${SAMPLE}" \
+            --input "${OUTPUT}/01_na_fastas/${SAMPLE}_bacreads.fasta" \
+            --output-directory "${OUTPUT}/02_predicted_protein/${SAMPLE}" \
             --database_path "${DB}/CheckM2_database/uniref100.KO.1.dmnd" > /dev/null 2>&1
     done
 
     echo -e "\033[46;37m >> STEP 4: Predicting HLA-peptide affinities... \033[0m"
-    mkdir -p "${OUTPUT}/aas" "${OUTPUT}/affinity"
+    mkdir -p "${OUTPUT}/03_amino_acid_processing" "${OUTPUT}/04_affinity_with_HLAs"
     
     ls "${INPUT}" | while read -r SAMPLE; do
         echo "====================================================================="
         echo "Processing sample ${SAMPLE}: Removing duplicates in fasta files of bacterial peptide..."
         
-        OUT_CDHIT="${OUTPUT}/aas/${SAMPLE}_bacpep_cdhit.fa"
+        OUT_CDHIT="${OUTPUT}/03_amino_acid_processing/${SAMPLE}_bacpep_cdhit.fa"
         
-        cd-hit -i "${OUTPUT}/checkm2_predict/${SAMPLE}/protein_files/${SAMPLE}_bacreads.faa" \
+        cd-hit -i "${OUTPUT}/02_predicted_protein/${SAMPLE}/protein_files/${SAMPLE}_bacreads.faa" \
             -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > /dev/null 2>&1
 
         # Remove sequences without start codon and ribosome binding sites
-        INPUT_PEP="${OUTPUT}/aas/${SAMPLE}_bacpep.txt"
+        INPUT_PEP="${OUTPUT}/03_amino_acid_processing/${SAMPLE}_bacpep.txt"
         awk '/^>/ {header=$0; getline seq; if (header !~ /rbs_motif=None/ && header !~ /start_type=Edge/) print seq}' \
             "${OUT_CDHIT}" > "${INPUT_PEP}"
         
-        echo "---------------------------------------------------------------------"
-        echo "Processing sample ${SAMPLE}: Window sliding..."
-        OUT_WINDOW="${INPUT_PEP%.*}_windowed.txt"
-        TMP_WINDOW="${OUT_WINDOW}.temp"
-
-        # Process each sequence in the input file
-        while read -r line; do
-            [ -z "${line}" ] && continue
-            process_sequence "${line}" >> "${TMP_WINDOW}"
-        done < "${INPUT_PEP}"
-        
-        awk 'length($0) >= 5' "${TMP_WINDOW}" > "${OUT_WINDOW}"
-        rm "${INPUT_PEP}"
-
-        echo "Window sliding completed. Output saved to: ${OUT_WINDOW}"
-
-        TMP_DIR="${OUTPUT}/tmp_split_${SAMPLE}"
-        mkdir -p "${TMP_DIR}"
-
-        TOTAL_LINES=$(wc -l < "${OUT_WINDOW}")
-        LINES_PER_THREAD=$(( (TOTAL_LINES + THREADS - 1) / THREADS ))
-
-        split -l "${LINES_PER_THREAD}" "${OUT_WINDOW}" "${TMP_DIR}/split_"
-        mkdir -p "${OUTPUT}/affinity/${SAMPLE}"
-        while read -r TYPE; do
-            echo "---------------------------------------------------------------------"
-            echo "Predicting affinity for ${SAMPLE} - HLA allele ${TYPE}..."
-            
-            for split_file in "${TMP_DIR}"/split_*; do
-                (
-                    OUT_NETMHC="${OUTPUT}/affinity/${SAMPLE}/${SAMPLE}_${TYPE}_$(basename "${split_file}").xls"
-                    netMHCpan -p "${split_file}" -BA -xls -a "${TYPE}" -xlsfile "${OUT_NETMHC}" > /dev/null 2>&1
-                ) &
-                
-                while [ $(jobs -r | wc -l) -ge "${THREADS}" ]; do
-                    sleep 1
-                done
-            done
-            wait
-
-            echo "---------------------------------------------------------------------"
-            echo "Combining multi-threads results..."
-            SAFE_TYPE=$(echo "${TYPE}" | tr ':' '_')
-            OUTPUT_FILE="${OUTPUT}/affinity/${SAMPLE}/${SAMPLE}_${SAFE_TYPE}.xls"
-            PATTERN="${OUTPUT}/affinity/${SAMPLE}/${SAMPLE}_${TYPE}_split_*"
-
-            FIRST_RESULT=$(ls ${PATTERN} 2>/dev/null | head -n 1)
-
-            if [ -n "${FIRST_RESULT}" ]; then
-                mkdir -p "$(dirname "${OUTPUT_FILE}")"
-                head -n 1 "${FIRST_RESULT}" > "${OUTPUT_FILE}"
-                
-                for result in ${PATTERN}
-                do
-                    if [ -f "${result}" ]; then
-                        tail -n +2 "${result}" >> "${OUTPUT_FILE}"
-                        rm -f "${result}"
-                    fi
-                done
-            else
-                echo "Warning: No split files found matching pattern: ${PATTERN}"
-            fi
-        done < "${OUTPUT}/allele_summary/${SAMPLE}.txt"
-        rm -rf "${TMP_DIR}"
+        # Predicting binding affinity
+        process_peptides "${SAMPLE}" "${INPUT_PEP}" "${OUTPUT}" "${THREADS}"
     done
 else
     echo "Wrong parameter -p!"
@@ -777,4 +803,4 @@ fi
 ###################################################################################
 # Pending revision
 #echo -e "\033[46;37m Extracting sample-specific strong and weak binders... \033[0m"
-#Rscript "${BACNEO}/affinity_summary.R" "${OUTPUT}"
+#Rscript "${BACNEO}/04_affinity_with_HLAs_summary.R" "${OUTPUT}"
