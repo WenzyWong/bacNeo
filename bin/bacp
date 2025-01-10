@@ -800,7 +800,5 @@ else
     echo "Wrong parameter -p!"
 fi
 
-###################################################################################
-# Pending revision
-#echo -e "\033[46;37m Extracting sample-specific strong and weak binders... \033[0m"
-#Rscript "${BACNEO}/04_affinity_with_HLAs_summary.R" "${OUTPUT}"
+echo -e "\033[46;37m >> STEP 5: Extracting sample-specific strong and weak binders... \033[0m"
+Rscript "${BACNEO}/utils/bacp_binder_summary.R" "${OUTPUT}"
