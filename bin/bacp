@@ -71,7 +71,7 @@ while getopts ":p:i:r:d:a:o:t:" options; do
 done
 
 # Extract the correct path of bacNeo
-for tmp_path in $BACNEO_PATHS; do
+for tmp_path in "${BACNEO_PATHS}"; do
   if [ -f "${tmp_path}/bacNeo.yml" ] && [ -d "${tmp_path}/bin" ]; then
     BACNEO="${tmp_path}"
     break
