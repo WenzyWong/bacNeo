@@ -71,16 +71,16 @@ while getopts ":p:i:r:d:a:o:t:" options; do
 done
 
 # Extract the correct path of bacNeo
-for tmp_path in "${BACNEO_PATHS}"; do
-  if [ -f "${tmp_path}/bacNeo.yml" ] && [ -d "${tmp_path}/bin" ]; then
-    BACNEO="${tmp_path}"
-    break
-  fi
-done
+while read -r tmp_path; do
+    if [ -f "${tmp_path}/bacNeo.yml" ] && [ -d "${tmp_path}/bin" ]; then
+        BACNEO="${tmp_path}"
+        break
+    fi
+done <<< "${BACNEO_PATHS}"
 if [ -z "${BACNEO}" ]; then
-  echo "The bacNeo path with the correct file structure was not found!"
+    echo "The bacNeo path with the correct file structure was not found!"
 else
-  echo "The bacNeo path found is: ${BACNEO}"
+    echo "The bacNeo path found is: ${BACNEO}"
 fi
 
 # Validate parameters
