@@ -9,7 +9,7 @@ ZIP=false
 THREADS=16
 DB=""
 declare -a TAXONOMY_LEVELS
-BACNEO=$(echo "${PATH}" | tr ':' '\n' | grep 'bacNeo' | uniq)
+BACNEO_PATHS=$(echo "${PATH}" | tr ':' '\n' | grep 'bacNeo' | uniq | xargs dirname)
 RUN_CHECKM2=false
 
 print_logo() {
@@ -94,6 +94,19 @@ elif [ "${ZIP}" = false ]; then
 else
     echo -e "\033[31m Wrong parameter -g, please check the help file. \033[0m"
     exit 1
+fi
+
+# Extract the correct path of bacNeo
+for tmp_path in "${BACNEO_PATHS}"; do
+  if [ -f "${tmp_path}/bacNeo.yml" ] && [ -d "${tmp_path}/bin" ]; then
+    BACNEO="${tmp_path}"
+    break
+  fi
+done
+if [ -z "${BACNEO}" ]; then
+  echo "The bacNeo path with the correct file structure was not found!"
+else
+  echo "The bacNeo path found is: ${BACNEO}"
 fi
 
 # Process based on omics type
