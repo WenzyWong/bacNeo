@@ -177,8 +177,8 @@ for TAXONOMY in "${TAXONOMY_LEVELS[@]}"; do
     
     echo -e "\033[46;37m >> STEP 6: Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
     python "${BACNEO}/utils/bacc_extract.py" -p "${OUT}" -s "${SAMPLE}" -l "${TAXONOMY}"
-    Rscript "${BACNEO}/utils/bacc_norm.R" "${OUT}" "${SAMPLE}" "${TAXONOMY}"
-    echo -e "Raw counts, CPM, and abundance saved at: ${OUT}/${SAMPLE}/normalized_${TAXONOMY}.txt"
+    Rscript "${BACNEO}/utils/bacc_norm.R" "${OUT}" "${TAXONOMY}"
+    echo -e "Raw counts, CPM, and abundance saved at: ${OUT}/normalized_${TAXONOMY}.txt"
 done
 
 if [ "${RUN_CHECKM2}" = true ]; then

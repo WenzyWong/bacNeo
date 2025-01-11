@@ -7,18 +7,16 @@
 args = commandArgs(trailingOnly=TRUE)
 
 DIR_RES <- args[1]
-SAMPLE <- args[2]
-TAXONOMY <- args[3]
+TAXONOMY <- args[2]
 
 library(edgeR)
 
-dir_counts <- paste0(DIR_RES, "/", samples[i], "/", "counts_", TAXONOMY, ".txt")
+dir_counts <- paste0(DIR_RES, "/", "counts_", TAXONOMY, ".txt")
 dt_counts <- read.delim(tmp_counts_path, header = F)
 colnames(dt_counts) <- c("species", "counts")
 
 counts_matrix <- matrix(dt_counts$counts, ncol = 1)
 rownames(counts_matrix) <- dt_counts$species
-colnames(counts_matrix) <- SAMPLE
 
 dge <- DGEList(counts = counts_matrix)
 
@@ -36,7 +34,7 @@ results <- data.frame(
 )
 
 write.table(results, 
-            file = paste0(DIR_RES, "/", SAMPLE, "/normalized_", TAXONOMY, ".txt"),
+            file = paste0(DIR_RES, "/normalized_", TAXONOMY, ".txt"),
             sep = "\t", 
             row.names = FALSE, 
             quote = FALSE)
