@@ -12,7 +12,7 @@ TAXONOMY <- args[2]
 library(edgeR)
 
 dir_counts <- paste0(DIR_RES, "/", "counts_", TAXONOMY, ".txt")
-dt_counts <- read.delim(tmp_counts_path, header = F)
+dt_counts <- read.delim(dir_counts, header = F)
 colnames(dt_counts) <- c("species", "counts")
 
 counts_matrix <- matrix(dt_counts$counts, ncol = 1)
@@ -24,7 +24,7 @@ dge <- DGEList(counts = counts_matrix)
 cpm_norm <- cpm(dge)
 
 # Calculating abundance
-abundance <- cpm_values / 1e4
+abundance <- cpm_norm / 1e4
 
 results <- data.frame(
   species = dt_counts$species,
