@@ -1,4 +1,5 @@
 #!/bin/bash
+# Define default values
 FQ1=""
 FQ2=""
 OMICS=""
@@ -8,7 +9,7 @@ ZIP=false
 THREADS=16
 DB=""
 declare -a TAXONOMY_LEVELS
-BACNEO=$(echo $PATH | tr ':' '\n' | grep 'bacNeo')
+BACNEO=$(echo "${PATH}" | tr ':' '\n' | grep 'bacNeo' | uniq)
 RUN_CHECKM2=false
 
 print_logo() {
@@ -32,151 +33,156 @@ print_logo() {
   echo -e "\e[0m"
 }
 
-usage() { # Function: Print a help message.
+usage() {
   print_logo
   echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -d DB ] [-l TAXONOMY] [ -c ]
-  -1 Paired-end clean data (R1) in fastq format.
-  -2 Paired-end clean data (R2) in fastq format.
-  -m Type of omics data. 'RNA' for transcriptome, 'WES'/'WGS' for genome.
-  -g [Optional] If the fastq file is zipped.
-  -r Reference directory path for hisat2 alignment (if omics data is RNA-seq) or bwa alignment (if omics data is WES/WGS).
-  -o Output directory path.
-  -t Number of threads (Default threads = 16).
-  -d The directory path of your datasebases generated through bacNeo2 --download-db.
-  -l Taxonomy level you would like to generate. 
-     Taxonomy levels include: 'd' for Domain, 'p' for Phylum, 'c' for Class, 'o'for Order, 'f' for Family, 'g' for Genus, and 's' for Species. 
-     Please ensure the level(s) you input is(are) included above. 
-     If you would like to calculate bacterial counts in multiple levels, you could input the characters one by one, e.g., -l g -l s.
-  -c [Optional] Check the quality and potential contamination of bacterial reads.
-  Make sure that you've already run bacNeo2 --download-db previously to generate required databases.
-  If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample." 1>&2 
+    -1 Paired-end clean data (R1) in fastq format.
+    -2 Paired-end clean data (R2) in fastq format.
+    -m Type of omics data. 'RNA' for transcriptome, 'WES'/'WGS' for genome.
+    -g [Optional] If the fastq file is zipped.
+    -r Reference directory path for hisat2 alignment (if omics data is RNA-seq) or bwa alignment (if omics data is WES/WGS).
+    -o Output directory path.
+    -t Number of threads (Default threads = 16).
+    -d The directory path of your datasebases generated through bacNeo2 --download-db.
+    -l Taxonomy level you would like to generate. 
+       Taxonomy levels include: 'd' for Domain, 'p' for Phylum, 'c' for Class, 'o'for Order, 'f' for Family, 'g' for Genus, and 's' for Species. 
+       Please ensure the level(s) you input is(are) included above. 
+       If you would like to calculate bacterial counts in multiple levels, you could input the characters one by one, e.g., -l g -l s.
+    -c [Optional] Check the quality and potential contamination of bacterial reads.
+    Make sure that you've already run bacNeo2 --download-db previously to generate required databases.
+    If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample." 1>&2 
 }
 exit_abnormal() { # Exit with error.
   usage
   exit 1
 }
 
-while getopts ":1:2:m:g:r:o:t:d:l:" options; do # Loop: Get the next option;
-                                                # use silent error checking.
-  case "${options}" in
-    1)
-        FQ1=${OPTARG}
-        ;;
-    2)
-        FQ2=${OPTARG}
-        ;;
-    m)
-        OMICS=${OPTARG}
-        ;;
-    g)
-        ZIP=true
-        ;;
-    r)
-        REF=${OPTARG}
-        ;;
-    o)
-        OUT=${OPTARG}
-        ;;
-    t)
-        THREADS=${OPTARG}
-        ;;
-    d)
-        DB=${OPTARG}
-        ;;
-    l)
-        TAXONOMY_LEVELS+=("${OPTARG}")
-        ;;
-    c)
-        RUN_CHECKM2=true
-        ;;
-    :)                                    # If expected argument omitted:
-      echo "Error: -${OPTARG} requires an argument."
-      exit_abnormal                       # Exit abnormally.
-      ;;
-    *)                                    # If unknown (any other) option:
-      exit_abnormal                       # Exit abnormally.
-      ;;
-  esac
+exit_abnormal() {
+    usage
+    exit 1
+}
+
+while getopts ":1:2:m:gr:o:t:d:l:c" options; do
+    case "${options}" in
+        1) FQ1="${OPTARG}" ;;
+        2) FQ2="${OPTARG}" ;;
+        m) OMICS="${OPTARG}" ;;
+        g) ZIP=true ;;
+        r) REF="${OPTARG}" ;;
+        o) OUT="${OPTARG}" ;;
+        t) THREADS="${OPTARG}" ;;
+        d) DB="${OPTARG}" ;;
+        l) TAXONOMY_LEVELS+=("${OPTARG}") ;;
+        c) RUN_CHECKM2=true ;;
+        :)
+            echo "Error: -${OPTARG} requires an argument."
+            exit_abnormal
+            ;;
+        *)
+            exit_abnormal
+            ;;
+    esac
 done
 
-if [ ${ZIP} == true ]
-then
-  SAMPLE=$(basename "$FQ1")
-  SAMPLE=${SAMPLE%.*.*}
-elif [ ${ZIP} == false ]
-then
-  SAMPLE=$(basename "$FQ1")
-  SAMPLE=${SAMPLE%.*}
+# Get sample name
+if [ "${ZIP}" = true ]; then
+    SAMPLE=$(basename "${FQ1}")
+    SAMPLE=${SAMPLE%.*.*}
+elif [ "${ZIP}" = false ]; then
+    SAMPLE=$(basename "${FQ1}")
+    SAMPLE=${SAMPLE%.*}
 else
-  echo -e "\033[31m Wrong parameter -g, please check the help file. \033[0m"
+    echo -e "\033[31m Wrong parameter -g, please check the help file. \033[0m"
+    exit 1
 fi
 
-if [ ${OMICS} == "RNA" ]
-then
-  echo -e "\033[46;37m >> STEP 0: Aligning for RNA sequencing... \033[0m"
-  hisat2 -x ${REF} -1 ${FQ1} -2 ${FQ2} -p ${THREADS} -S ${OUT}/${SAMPLE}".sam"
-elif [ ${OMICS} == "WES" ]
-then
-  echo -e "\033[46;37m >> STEP 0: Aligning for WES... \033[0m"
-  bwa mem -t ${THREADS} -M -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" ${REF} ${FQ1} ${FQ2} > ${OUT}/${SAMPLE}".sam"
-elif [ ${OMICS} == "WGS" ]
-then
-  echo -e "\033[46;37m >> STEP 0: Aligning for WGS... \033[0m"
-  bwa mem -t ${THREADS} -M -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" ${REF} ${FQ1} ${FQ2} > ${OUT}/${SAMPLE}".sam"
-else
-  echo -e "\033[31m Wrong parameter -m, please check the help file. \033[0m"
-fi
+# Process based on omics type
+case "${OMICS}" in
+    "RNA")
+        echo -e "\033[46;37m >> STEP 0: Aligning for RNA sequencing... \033[0m"
+        hisat2 -x "${REF}" -1 "${FQ1}" -2 "${FQ2}" -p "${THREADS}" -S "${OUT}/${SAMPLE}.sam"
+        ;;
+    "WES"|"WGS")
+        echo -e "\033[46;37m >> STEP 0: Aligning for ${OMICS}... \033[0m"
+        bwa mem -t "${THREADS}" -M \
+            -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" \
+            "${REF}" "${FQ1}" "${FQ2}" > "${OUT}/${SAMPLE}.sam"
+        ;;
+    *)
+        echo -e "\033[31m Wrong parameter -m, please check the help file. \033[0m"
+        exit 1
+        ;;
+esac
 
 echo -e "\033[46;37m >> STEP 1: Sorting... \033[0m"
-samtools sort -o ${OUT}/${SAMPLE}"_sorted.bam" -@ ${THREADS} ${OUT}/${SAMPLE}".sam"
-rm ${OUT}/${SAMPLE}".sam"
+samtools sort -o "${OUT}/${SAMPLE}_sorted.bam" -@ "${THREADS}" "${OUT}/${SAMPLE}.sam"
+rm "${OUT}/${SAMPLE}.sam"
 
 echo -e "\033[46;37m >> STEP 2: Building index... \033[0m"
-samtools index ${OUT}/${SAMPLE}"_sorted.bam" ${OUT}/${SAMPLE}".bai"
+samtools index "${OUT}/${SAMPLE}_sorted.bam" "${OUT}/${SAMPLE}.bai"
 
 echo -e "\033[46;37m >> STEP 3: Extracting unmapped reads... \033[0m"
-samtools view -b -f 4 ${OUT}/${SAMPLE}"_sorted.bam" > ${OUT}/${SAMPLE}"_unmap.bam"
+samtools view -b -f 4 "${OUT}/${SAMPLE}_sorted.bam" > "${OUT}/${SAMPLE}_unmap.bam"
 echo -e "Reads mapping against human reads saved at: ${OUT}/${SAMPLE}_unmap.bam"
 
 echo -e "\033[46;37m >> STEP 4: Converting unmapped bam file to fastq files... \033[0m"
-samtools fastq -@ ${THREADS} ${OUT}/${SAMPLE}"_unmap.bam" -1 ${OUT}/${SAMPLE}"_unmap_R1.fq" -2 ${OUT}/${SAMPLE}"_unmap_R2.fq"
+samtools fastq -@ "${THREADS}" "${OUT}/${SAMPLE}_unmap.bam" \
+    -1 "${OUT}/${SAMPLE}_unmap_R1.fq" \
+    -2 "${OUT}/${SAMPLE}_unmap_R2.fq"
 echo -e "Unmapped reads converting to fastq format saved at: ${OUT}/${SAMPLE}_unmap_R1&2.fq"
 
 echo -e "\033[46;37m >> STEP 5: Classifying microbe reads... \033[0m"
-kraken2 --threads ${THREADS} --db ${DB}"/bac_na" --paired ${OUT}/${SAMPLE}"_unmap_R1.fq" ${OUT}/${SAMPLE}"_unmap_R2.fq" --output ${OUT}/${SAMPLE}".KRAKEN" --report ${OUT}/${SAMPLE}".mpa" --use-mpa-style
+kraken2 --threads "${THREADS}" \
+    --db "${DB}/bac_na" \
+    --paired "${OUT}/${SAMPLE}_unmap_R1.fq" "${OUT}/${SAMPLE}_unmap_R2.fq" \
+    --output "${OUT}/${SAMPLE}.KRAKEN" \
+    --report "${OUT}/${SAMPLE}.mpa" \
+    --use-mpa-style
 echo -e "Report in mpa-style saved at: ${OUT}/${SAMPLE}.mpa"
-kraken2 --threads ${THREADS} --db ${DB}"/bac_na" --paired ${OUT}/${SAMPLE}"_unmap_R1.fq" ${OUT}/${SAMPLE}"_unmap_R2.fq" --output ${OUT}/${SAMPLE}".KRAKEN" --report ${OUT}/${SAMPLE}".standard"
+
+kraken2 --threads "${THREADS}" \
+    --db "${DB}/bac_na" \
+    --paired "${OUT}/${SAMPLE}_unmap_R1.fq" "${OUT}/${SAMPLE}_unmap_R2.fq" \
+    --output "${OUT}/${SAMPLE}.KRAKEN" \
+    --report "${OUT}/${SAMPLE}.standard"
 echo -e "Report in standard-style saved at: ${OUT}/${SAMPLE}.standard"
 
-echo -e "\033[46;37m >> STEP 6: Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
-# Valiate inputted taxonomy level(s)
+# Validate taxonomy levels
 valid_levels=("d" "p" "c" "o" "f" "g" "s")
-for TAXONOMY in ${TAXONOMY_LEVELS[@]}; do
+for TAXONOMY in "${TAXONOMY_LEVELS[@]}"; do
     valid=false
-    for valid_level in ${valid_levels[@]}; do
-        if [ ${TAXONOMY} = ${valid_level} ]; then
+    for valid_level in "${valid_levels[@]}"; do
+        if [ "${TAXONOMY}" = "${valid_level}" ]; then
             valid=true
             break
         fi
     done
-    if [ "$valid" = false ]; then
+    if [ "${valid}" = false ]; then
         echo "ERROR: ${TAXONOMY} is not a valid taxonomy level!"
         exit 1
     fi
     
-    echo -e "\033[46;37m >> STEP 9: Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
-    python ${BACNEO}"/utils/bacc_extract.py" -p ${OUT} -s ${SAMPLE} -l ${TAXONOMY}
-    Rscript ${BACNEO}"/utils/bacc_norm.R" ${OUT} ${SAMPLE} ${TAXONOMY}
+    echo -e "\033[46;37m >> STEP 6: Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
+    python "${BACNEO}/utils/bacc_extract.py" -p "${OUT}" -s "${SAMPLE}" -l "${TAXONOMY}"
+    Rscript "${BACNEO}/utils/bacc_norm.R" "${OUT}" "${SAMPLE}" "${TAXONOMY}"
     echo -e "Raw counts, CPM, and abundance saved at: ${OUT}/${SAMPLE}/normalized_${TAXONOMY}.txt"
 done
 
-if [ "$RUN_CHECKM2" = true ]; then
-  echo -e "\033[46;37m >> STEP Extra 1: Converting taxonomy reads into fasta files... \033[0m"  
-  python ${BACNEO}"/utils/bacp_taxon2fasta.py" -k ${OUT}/${SAMPLE}".KRAKEN" -s1 ${OUT}/${SAMPLE}"_unmap_R1.fq" -s2 ${OUT}/${SAMPLE}"_unmap_R2.fq" -o ${OUT}/${SAMPLE}"_bacreads.fa"
+if [ "${RUN_CHECKM2}" = true ]; then
+    echo -e "\033[46;37m >> STEP Extra 1: Converting taxonomy reads into fasta files... \033[0m"  
+    python "${BACNEO}/utils/bacp_taxon2fasta.py" \
+        -k "${OUT}/${SAMPLE}.KRAKEN" \
+        -s1 "${OUT}/${SAMPLE}_unmap_R1.fq" \
+        -s2 "${OUT}/${SAMPLE}_unmap_R2.fq" \
+        -o "${OUT}/${SAMPLE}_bacreads.fa"
 
-  echo -e "\033[46;37m >> STEP Extra 2: Checking reads quality and potential contaminants... \033[0m"
-  mkdir -p ${OUT}"/checkm2_predict/"
-  checkm2 predict --threads ${THREADS} --input ${OUT}/${SAMPLE}"_bacreads.fa" --output-directory ${OUT}"/checkm2_predict/" --database_path ${DB}"/CheckM2_database/uniref100.KO.1.dmnd"
-  mv ${OUT}"/checkm2_predict/quality_report.tsv" ${OUT}/${SAMPLE}"_quality_report.tsv"
-  rm -rf ${OUT}"/checkm2_predict/"
+    echo -e "\033[46;37m >> STEP Extra 2: Checking reads quality and potential contaminants... \033[0m"
+    mkdir -p "${OUT}/checkm2_predict/"
+    checkm2 predict \
+        --threads "${THREADS}" \
+        --input "${OUT}/${SAMPLE}_bacreads.fa" \
+        --output-directory "${OUT}/checkm2_predict/" \
+        --database_path "${DB}/CheckM2_database/uniref100.KO.1.dmnd"
+    mv "${OUT}/checkm2_predict/quality_report.tsv" "${OUT}/${SAMPLE}_quality_report.tsv"
+    rm -rf "${OUT}/checkm2_predict/"
 fi
