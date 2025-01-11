@@ -3,9 +3,9 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - tcsh
   - cd-hit
   - ucsc-fatrans
+  - R >= 4.0
   - python >= 3.7, < 3.9
   - scikit-learn = 0.23.2
   - h5py = 2.10.0
@@ -15,6 +15,8 @@ dependencies:
   - lightgbm = 3.2.1
   - pandas = 1.4.0
   - scipy = 1.8.0
+  - r-dplyr
+  - bioconductor-edger
   - blast
   - kraken2
   - biopython
