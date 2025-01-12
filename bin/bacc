@@ -57,11 +57,6 @@ exit_abnormal() { # Exit with error.
   exit 1
 }
 
-exit_abnormal() {
-    usage
-    exit 1
-}
-
 while getopts ":1:2:m:gr:o:t:d:l:c" options; do
     case "${options}" in
         1) FQ1="${OPTARG}" ;;
