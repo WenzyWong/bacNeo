@@ -1,5 +1,8 @@
 #!/bin/bash
 DB=""
+BACC_DIR=""
+TAXONOMY=""
+METHOD=""
 
 print_logo() {
   echo -e "\e[36m"
@@ -15,10 +18,13 @@ print_logo() {
 }
 
 usage() {                                 # Function: Print a help message.
-  print_logo
-  echo "Usage: bacNeo2 [ --download-db DB ]
-  --download-db The path you would like to put reference databases into.
-  -h, --help    Show this help message.
+  echo "Usage: bacNeo2 [ --download-db DB | --extract-matrix -d DIR -l LEVEL -m METHOD ]
+  --download-db     The path you would like to put reference databases into.
+  --extract-matrix  Extract matrix using specified parameters
+  -d, --dir        Directory path for matrix extraction
+  -l, --level      Taxonomic level for calculation
+  -m, --method     Normalization method name
+  -h, --help       Show this help message.
   " 1>&2 
 }
 exit_abnormal() {                         # Function: Exit with error.
@@ -29,20 +35,40 @@ exit_abnormal() {                         # Function: Exit with error.
 download_database() {
     local db_path="$1"
 
-    mkdir -p "$db_path"
+    mkdir -p "${db_path}"
     echo -e "\033[31m >> STEP 0: Start downloading bacteiral filtering reference into: ${db_path} \033[0m"
-    checkm2 database --download --path "$db_path"
+    checkm2 database --download --path "${db_path}"
     echo -e "\033[31m >> Finish downloading bacteiral filtering reference. \033[0m"
 
-    mkdir -p "$db_path"/bac_na
+    mkdir -p "${db_path}/bac_na"
     echo -e "\033[31m >> STEP 1: Start downloading bacterial database (nucleic acid sequence reference) into: ${db_path}/bac_na \033[0m"
     kraken2-build --download-library bacteria --db "$db_path"/bac_na
     echo -e "\033[31m >> Finish downloading bacterial database (nucleic acid sequence reference). \033[0m"
 
-    mkdir -p "$db_path"/bac_aa
+    mkdir -p "${db_path}/bac_aa"
     echo -e "\033[31m >> STEP 2: Start downloading bacterial database (amino acid sequence reference) into: ${db_path}/bac_aa \033[0m"
-    kraken2-build --download-library bacteria --protein --db "$db_path"/bac_aa
+    kraken2-build --download-library bacteria --protein --db "${db_path}/bac_aa"
     echo -e "\033[31m >> Finish downloading bacterial database (amino acid sequence reference). \033[0m"
+}
+
+extract_matrix() {
+    BACNEO_PATHS=$(echo "${PATH}" | tr ':' '\n' | grep 'bacNeo' | uniq | xargs dirname)
+
+    while read -r tmp_path; do
+        if [ -f "${tmp_path}/bacNeo.yml" ] && [ -d "${tmp_path}/bin" ]; then
+            BACNEO="${tmp_path}"
+            break
+        fi
+    done <<< "${BACNEO_PATHS}"
+
+    if [ -z "${BACNEO}" ]; then
+        echo "The bacNeo path with the correct file structure was not found!"
+        exit 1
+    else
+        echo "The bacNeo path found is: ${BACNEO}"
+    fi
+
+    Rscript "${BACNEO}/utils/bacNeo_matrix.R" -d "${BACC_DIR}" -l "${TAXONOMY}" -m "${METHOD}"
 }
 
 main() {
@@ -52,17 +78,56 @@ main() {
         exit 1
     fi
 
+    # Flag to track if extract_matrix is called
+    local extract_mode=false
+
     # Parses command-line arguments
     while [ $# -gt 0 ]; do
         case "$1" in
             --download-db)
+                if ${extract_mode}; then
+                    echo "ERROR: Cannot use --download-db with --extract-matrix"
+                    exit_abnormal
+                fi
                 if [ -z "$2" ]; then
-                    echo "ERROR: --download-db require a given path"
+                    echo "ERROR: --download-db requires a given path"
                     exit_abnormal
                 fi
                 DB="$2"
-                download_database "$DB"
-                shift 2  # Skip parameter names and values
+                download_database "${DB}"
+                shift 2
+                ;;
+            --extract-matrix)
+                if [ ! -z "${DB}" ]; then
+                    echo "ERROR: Cannot use --extract-matrix with --download-db"
+                    exit_abnormal
+                fi
+                extract_mode=true
+                shift
+                ;;
+            -d|--dir)
+                if [ -z "$2" ]; then
+                    echo "ERROR: -d/--dir requires a directory path"
+                    exit_abnormal
+                fi
+                BACC_DIR="$2"
+                shift 2
+                ;;
+            -l|--level)
+                if [ -z "$2" ]; then
+                    echo "ERROR: -l/--level requires a taxonomic level"
+                    exit_abnormal
+                fi
+                TAXONOMY="$2"
+                shift 2
+                ;;
+            -m|--method)
+                if [ -z "$2" ]; then
+                    echo "ERROR: -m/--method requires a method name"
+                    exit_abnormal
+                fi
+                METHOD="$2"
+                shift 2
                 ;;
             -h|--help)
                 usage
@@ -74,6 +139,14 @@ main() {
                 ;;
         esac
     done
+
+    if "${extract_mode}"; then
+        if [ -z "${BACC_DIR}" ] || [ -z "${TAXONOMY}" ] || [ -z "${METHOD}" ]; then
+            echo "ERROR: --extract-matrix requires -d/--dir, -l/--level, and -m/--method parameters"
+            exit_abnormal
+        fi
+        extract_matrix
+    fi
 }
 
 main "$@"
