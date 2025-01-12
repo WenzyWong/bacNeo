@@ -194,3 +194,5 @@ if [ "${RUN_CHECKM2}" = true ]; then
     mv "${OUT}/checkm2_predict/quality_report.tsv" "${OUT}/${SAMPLE}_quality_report.tsv"
     rm -rf "${OUT}/checkm2_predict/"
 fi
+
+main "$@"
