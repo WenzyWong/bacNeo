@@ -123,7 +123,7 @@ Additionally, if you want to run `bacp`, you need to manually install [netMHCpan
         If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample.
     ```
 
-- `bacp` can detect bacterial peptides from proteome datasets and predict HLA-peptide affinities based on results from `bach`. The reference should be provided by users. It is recommended to download reference protome from [UniProt](https://www.uniprot.org/). If no proteome dataset is available, `bacp` could also use bacterial reads extracted by `bacc`, and predict HLA-peptide affinities as well. See usage: `bacp -h`.
+- `bacp` can detect bacterial peptides from proteome datasets and predict HLA-peptide affinities based on results from `bach`. The reference should be provided by users. It is recommended to download reference protome from [UniProt](https://www.uniprot.org/). If no proteome dataset is available, `bacp` could also predict potential neoantigens based on bacteria identified by `bacc`. See usage: `bacp -h`.
 
     ```
     Usage: bacp [-p] [ -i INPUT ] [ -r REF ] [ -d DB ] [ -a ALLELE ] [ -o OUTPUT ] [ -t THREADS ]
