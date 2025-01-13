@@ -44,6 +44,24 @@ Additionally, if you want to run `bacp`, you need to manually install [netMHCpan
 
 ## Commands
 
+- `bacNeo` has two modules, seperated by two mutually exclusive parameters, i.e., `--download-db` and `--extract-matrix`. 
+
+    - `--download-db` would download all databases and references required in `bacc`, `bach`, and `bach`.
+
+    - `--extract-matrix` would aid in bacterial read count / CPM-normalization / abundance matrix. Make sure that you have already run `bacc` to produce bacterial read counts per sample.
+
+    For detailed usage: `bacNeo -h`.
+
+    ```
+        Usage: bacNeo2 [ --download-db DB | --extract-matrix -d DIR -l LEVEL -m METHOD ]
+            --download-db     The path you would like to put reference databases into.
+            --extract-matrix  Extract matrix using specified parameters
+            -d, --dir        Directory path for matrix extraction
+            -l, --level      Taxonomic level for calculation
+            -m, --method     Normalization method name
+            -h, --help       Show this help message.
+    ```
+
 - `bacc` can extract the number of bacterial reads from genome or transcriptome datasets. See usage: `bacc -h`.
 
     ```
