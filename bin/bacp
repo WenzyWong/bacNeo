@@ -30,6 +30,7 @@ print_logo() {
 }
 
 usage() {
+    print_logo
     echo "Usage: bacp [-p] [ -i INPUT ] [ -r REF ] [ -d DB ] [ -a ALLELE ] [ -o OUTPUT ] [ -t THREADS ]
     -p Flag indicating proteome data analysis. If present, proteome workflow will be used.
     -i Input directory path:
