@@ -802,6 +802,6 @@ else
 fi
 
 echo -e "\033[46;37m >> STEP 5: Extracting sample-specific strong and weak binders... \033[0m"
-Rscript "${BACNEO}/utils/bacp_binder_summary.R" "${OUTPUT}"
+Rscript "${BACNEO}/utils/bacp_binder_summary_with_TAP_efficiency.R" "${OUTPUT}"
 
 main "$@"
