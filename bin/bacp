@@ -98,7 +98,7 @@ fi
 # Window sliding funtion
 process_sequence() {
     local sequence="${1}"
-    local window_size=10
+    local window_size=9
     local step_size=3
     local seq_length=${#sequence}
     local max_start=$((seq_length - window_size))
