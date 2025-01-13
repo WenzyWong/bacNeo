@@ -1,8 +1,9 @@
 #################################################################################
 # Rscript for extracting strong and weak binders from netMHCpan output files
+# and calculating logIC50 for predicted TAP-binding efficiency
 
 # Yunzhe WANG, yunzhewang24@m.fudan.edu.cn
-# Updated: 2025-01-10
+# Updated: 2025-01-13
 #################################################################################
 library(dplyr)
 
@@ -49,7 +50,7 @@ for (i in 1:length(hla_files)) {
 
 # Function to calculate TAP efficiency scores for 9-mer peptides
 # Consensus matrix downloaded from: https://doi.org/10.4049/jimmunol.171.4.1741
-calculate_tap_scores <- function(peptides_df) {
+calculate_tap_binding <- function(peptides_df) {
   # Create scoring matrix from the consensus scores
   # Replace question marks with empty strings in the raw data
   scoring_matrix <- matrix(
@@ -90,13 +91,16 @@ calculate_tap_scores <- function(peptides_df) {
   }
   
   # Calculate TAP efficiency scores for all peptides
-  peptides_df$TAP_efficiency <- sapply(peptides_df$Peptide_ID, score_peptide)
+  peptides_df$TAP_logIC50 <- sapply(peptides_df$Peptide_ID, score_peptide)
   
   return(peptides_df)
 }
 
-new_strong <- calculate_tap_scores(all_strong)
-new_weak <- calculate_tap_scores(all_weak)
+new_strong <- calculate_tap_binding(all_strong)
+new_strong <- new_strong[order(new_strong$TAP_logIC50, new_strong$BA_Rank), ]
+
+new_weak <- calculate_tap_binding(all_weak)
+new_weak <- new_weak[order(new_weak$TAP_logIC50, new_weak$BA_Rank), ]
 
 write.csv(new_strong, paste0(OUTPUT, "/Strong_binders.csv"))
 write.csv(new_weak, paste0(OUTPUT, "/Weak_binders.csv"))
