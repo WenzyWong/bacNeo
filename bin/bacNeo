@@ -37,19 +37,19 @@ download_database() {
     local db_path="$1"
 
     mkdir -p "${db_path}"
-    echo -e "\033[31m >> STEP 0: Start downloading bacteiral filtering reference into: ${db_path} \033[0m"
+    echo -e "\033[46;37m>> STEP 0: Start downloading bacteiral filtering reference into: ${db_path} \033[0m"
     checkm2 database --download --path "${db_path}"
-    echo -e "\033[31m >> Finish downloading bacteiral filtering reference. \033[0m"
+    echo -e "\033[46;37m>> Finish downloading bacteiral filtering reference. \033[0m"
 
     mkdir -p "${db_path}/bac_na"
-    echo -e "\033[31m >> STEP 1: Start downloading bacterial database (nucleic acid sequence reference) into: ${db_path}/bac_na \033[0m"
+    echo -e "\033[46;37m>> STEP 1: Start downloading bacterial database (nucleic acid sequence reference) into: ${db_path}/bac_na \033[0m"
     kraken2-build --download-library bacteria --db "$db_path"/bac_na
-    echo -e "\033[31m >> Finish downloading bacterial database (nucleic acid sequence reference). \033[0m"
+    echo -e "\033[46;37m>> Finish downloading bacterial database (nucleic acid sequence reference). \033[0m"
 
     mkdir -p "${db_path}/bac_aa"
-    echo -e "\033[31m >> STEP 2: Start downloading bacterial database (amino acid sequence reference) into: ${db_path}/bac_aa \033[0m"
+    echo -e "\033[46;37m>> STEP 2: Start downloading bacterial database (amino acid sequence reference) into: ${db_path}/bac_aa \033[0m"
     kraken2-build --download-library bacteria --protein --db "${db_path}/bac_aa"
-    echo -e "\033[31m >> Finish downloading bacterial database (amino acid sequence reference). \033[0m"
+    echo -e "\033[46;37m>> Finish downloading bacterial database (amino acid sequence reference). \033[0m"
 }
 
 extract_matrix() {
