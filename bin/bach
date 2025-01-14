@@ -35,7 +35,7 @@ usage() {                                 # Function: Print a help message.
     For alignment workflow:
       bach -1 FQ1 -2 FQ2 -r REF -s SCAN -d DB -g GENES -o OUT [-t THREADS]
     
-    For pre-processed BAM workflow:
+    For pre-processed BAM workflow (if you have already used WES / WGS mode to run bacc, or you only have .bam file):
       bach -c BACC_PATH -s SCAN -d DB -g GENES -o OUT [-t THREADS]
 
     Required for alignment workflow:
