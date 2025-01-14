@@ -21,13 +21,13 @@ print_logo() {
 usage() {    
     print_logo                             # Function: Print a help message.
     echo "Usage: bacNeo2 [ --download-db DB -t THREADS | --extract-matrix -d DIR -l LEVEL -m METHOD ]
-    --download-db       The path you would like to put reference databases into.
-    -t      Number of threads (Default threads = 16).
-    --extract-matrix        Extract matrix using specified parameters
-    -d, --dir       Directory path for matrix extraction
-    -l, --level     Taxonomic level for calculation
+    --download-db       The path you would like to put reference databases into
+    -t                  Number of threads (Default threads = 16)
+    --extract-matrix    Extract matrix using specified parameters
+    -d, --dir           Directory path for matrix extraction
+    -l, --level         Taxonomic level for calculation
     -m, --method        Normalization method name
-    -h, --help      Show this help message.
+    -h, --help          Show this help message
     " 1>&2 
 }
 exit_abnormal() {                         # Function: Exit with error.
