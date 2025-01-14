@@ -43,7 +43,7 @@ download_database() {
 
     mkdir -p "${db_path}/bac_na"
     echo -e "\033[46;37m>> STEP 1: Start downloading bacterial database (nucleic acid sequence reference) into: ${db_path}/bac_na \033[0m"
-    kraken2-build --download-library bacteria --db "$db_path"/bac_na
+    kraken2-build --download-library bacteria --db "${db_path}"/bac_na
     echo -e "\033[46;37m>> Finish downloading bacterial database (nucleic acid sequence reference). \033[0m"
 
     mkdir -p "${db_path}/bac_aa"
@@ -86,7 +86,7 @@ main() {
     while [ $# -gt 0 ]; do
         case "$1" in
             --download-db)
-                if ${extract_mode}; then
+                if "${extract_mode}"; then
                     echo "ERROR: Cannot use --download-db with --extract-matrix"
                     exit_abnormal
                 fi
