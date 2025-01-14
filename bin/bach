@@ -31,7 +31,7 @@ print_logo() {
 
 usage() {                                 # Function: Print a help message.
   print_logo
-  echo "Usage: bach [ -1 FQ1 ] [ -2 FQ2 ] [ -r REF ] [ -s SCAN ] [ -d DB ] [ -g GENES ] [ -o OUT ] [ -t THREADS ]
+  echo "Usage: bach [ -1 FQ1 ] [ -2 FQ2 ] [ -r REF ] [ -s SCAN ] [ -d DB ] [ -g GENES ] [ -o OUT ] [ -t THREADS ] [ -c BACC_PATH ]
   -1 Paired-end clean data (R1) in fastq format.
   -2 Paired-end clean data (R2) in fastq format.
   -r Reference fasta file for bwa alignment, either hg38 or hg19.
@@ -43,6 +43,7 @@ usage() {                                 # Function: Print a help message.
      If you would like to impute multiple HLA types at once, you could input the types one by one, e.g., -g HLA-A -g HLA-B.
   -o Output directory path.
   -t Number of threads (Default threads = 16).
+  -c Directory path containing pre-processed BAM files (optional). If provided, alignment and sorting steps will be skipped.
   If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample." 1>&2 
 }
 exit_abnormal() {                         # Function: Exit with error.
@@ -50,90 +51,102 @@ exit_abnormal() {                         # Function: Exit with error.
   exit 1
 }
 
-while getopts ":1:2:r:s:d:g:o:t:" options; do # Loop: Get the next option;
-                                              # use silent error checking;
-                                              # options n and t take arguments.
+while getopts ":1:2:r:s:d:g:o:t:c:" options; do
   case "${options}" in
-    1)
-        FQ1=${OPTARG}
+    1) FQ1="${OPTARG}" ;;
+    2) FQ2="${OPTARG}" ;;
+    r) REF="${OPTARG}" ;;
+    s) SCAN="${OPTARG}" ;;
+    d) DB="${OPTARG}" ;;
+    g) GENES+=("${OPTARG}") ;;
+    o) OUT="${OPTARG}" ;;
+    t) THREADS="${OPTARG}" ;;
+    c) BACC_PATH="${OPTARG}" ;;
+    :)
+        echo "Error: -${OPTARG} requires an argument."
+        exit_abnormal
         ;;
-    2)
-        FQ2=${OPTARG}
+    *)
+        exit_abnormal
         ;;
-    r)
-        REF=${OPTARG}
-        ;;
-    s)
-        SCAN=${OPTARG}
-        ;;
-    d)
-        DB=${OPTARG}
-        ;;
-    g)
-        GENES+=("${OPTARG}")
-        ;;
-    o)
-        OUT=${OPTARG}
-        ;;
-    t)
-        THREADS=${OPTARG}
-        ;;
-    :)                                    # If expected argument omitted:
-      echo "Error: -${OPTARG} requires an argument."
-      exit_abnormal                       # Exit abnormally.
-      ;;
-    *)                                    # If unknown (any other) option:
-      exit_abnormal                       # Exit abnormally.
-      ;;
   esac
 done
 
-TOOL=${SCAN}"/hla_scan_r_v2.1.4"
-if [ -e ${TOOL} ]
+TOOL="${SCAN}/hla_scan_r_v2.1.4"
+if [ -e "${TOOL}" ]
 then
   echo -e "\033[46;37m Hla-scan exists. Skipping installation... \033[0m"
-  chmod 777 ${TOOL}
+  chmod 777 "${TOOL}"
 else
   echo -e "\033[46;37m Installing hla-scan... \033[0m"
   wget "https://github.com/SyntekabioTools/HLAscan/releases/download/v2.1.4/hla_scan_r_v2.1.4" ${TOOLDIR}
-  chmod 777 ${TOOL}
+  chmod 777 "${TOOL}"
 fi
 
 SAMPLE="${FQ1##*/}"
 SAMPLE="${SAMPLE%%.*}"
 
-if [ -e ${OUT}"/align" ]
+if [ -e "${OUT}/align" ]
 then
   echo ""
 else
-  mkdir ${OUT}"/align"
+  mkdir "${OUT}/align"
 fi
 
-SAM=${OUT}"/align/"${SAMPLE}".sam"
-BAM=${OUT}"/align/"${SAMPLE}"_sorted.bam"
-
-if [ -e ${BAM} ]
-then
-  echo -e "\033[46;37m Aligning completed, skipping... \033[0m"
+# Determine the sample name and BAM file path
+if [ -n "${BACC_PATH}" ]; then
+  # If BACC_PATH is provided, extract sample name from FQ1 (or another identifier)
+  if [ -n "${FQ1}" ]; then
+    SAMPLE="${FQ1##*/}"
+    SAMPLE="${SAMPLE%%.*}"
+  else
+    echo "Error: When using -c option, you still need to specify the sample name using -1 option"
+    exit 1
+  fi
+  
+  # Check if the corresponding BAM file exists in the BACC_PATH directory
+  if [ -e "${BACC_PATH}/${SAMPLE}_sorted.bam" ]; then
+    BAM="${BACC_PATH}/${SAMPLE}_sorted.bam"
+    echo -e "\033[46;37m >> Using pre-processed BAM file: ${BAM} \033[0m"
+    
+    # Check if BAM index exists
+    if [ ! -e "${BAM}.bai" ]; then
+      echo -e "\033[46;37m >> Creating BAM index... \033[0m"
+      samtools index "${BAM}"
+    fi
+  else
+    echo "Error: Cannot find ${SAMPLE}_sorted.bam in ${BACC_PATH}"
+    exit 1
+  fi
 else
-  echo -e "\033[46;37m Aligning... \033[0m"
-  bwa mem -t ${THREADS} -M -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" ${REF} ${FQ1} ${FQ2} > ${SAM}
+  # Original sample name extraction and BAM file generation
+  SAMPLE="${FQ1##*/}"
+  SAMPLE="${SAMPLE%%.*}"
+  SAM="${OUT}/align/${SAMPLE}.sam"
+  BAM="${OUT}/align/${SAMPLE}_sorted.bam"
   
-  echo -e "\033[46;37m Sorting... \033[0m"
-  samtools sort ${SAM} -o ${BAM} -@ ${THREADS}
-  rm ${SAM}
-  samtools index ${BAM} ${BAM}.bai
-  
-  echo -e "\033[46;37m Extracting chromesome 6... \033[0m"
-  CHR6=${OUT}"/align/"${SAMPLE}"_chr6.bam"
-  samtools view -bh ${BAM} 6 > ${CHR6}
-  samtools index ${CHR6} ${CHR6}".bai"
+  if [ -e "${BAM}" ]; then
+    echo -e "\033[46;37m >> STEP 0: Aligning completed, skipping... \033[0m"
+  else
+    echo -e "\033[46;37m >> STEP 0: Aligning... \033[0m"
+    bwa mem -t "${THREADS}" -M -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" "${REF}" "${FQ1}" "${FQ2}" > "${SAM}"
+    
+    echo -e "\033[46;37m >> STEP 1: Sorting... \033[0m"
+    samtools sort "${SAM}" -o "${BAM}" -@ "${THREADS}"
+    rm "${SAM}"
+    samtools index "${BAM}"
+  fi
 fi
 
-echo -e "\033[46;37m Selected HLA types: ${GENES[@]} \033[0m"
-for GENE in ${GENES[@]}; do
+echo -e "\033[46;37m >> STEP 2: Extracting chromesome 6... \033[0m"
+CHR6="${OUT}/align/${SAMPLE}_chr6.bam"
+samtools view -bh "${BAM}" 6 > "${CHR6}"
+samtools index "${CHR6}" "${CHR6}.bai"
+
+echo -e "\033[46;37m >> STEP 3: Selected HLA types: ${GENES[@]} \033[0m"
+for GENE in "${GENES[@]}"; do
     echo -e "\033[46;37m HLA typing of ${GENE}... \033[0m"
-  ${TOOL} -b ${BAM} -v 38 -d ${DB} -g ${GENE} -t ${THREADS} > ${OUT}/${GENE}.txt
+  "${TOOL}" -b "${BAM}" -v 38 -d "${DB}" -g "${GENE}" -t "${THREADS}" > "${OUT}/${GENE}.txt"
 done
 
 main "$@"
