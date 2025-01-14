@@ -3,6 +3,7 @@ DB=""
 BACC_DIR=""
 TAXONOMY=""
 METHOD=""
+THREADS=16
 
 print_logo() {
   echo -e "\e[36m"
@@ -19,13 +20,14 @@ print_logo() {
 
 usage() {    
     print_logo                             # Function: Print a help message.
-    echo "Usage: bacNeo2 [ --download-db DB | --extract-matrix -d DIR -l LEVEL -m METHOD ]
-    --download-db     The path you would like to put reference databases into.
-    --extract-matrix  Extract matrix using specified parameters
-    -d, --dir        Directory path for matrix extraction
-    -l, --level      Taxonomic level for calculation
-    -m, --method     Normalization method name
-    -h, --help       Show this help message.
+    echo "Usage: bacNeo2 [ --download-db DB -t THREADS | --extract-matrix -d DIR -l LEVEL -m METHOD ]
+    --download-db       The path you would like to put reference databases into.
+    -t      Number of threads (Default threads = 16).
+    --extract-matrix        Extract matrix using specified parameters
+    -d, --dir       Directory path for matrix extraction
+    -l, --level     Taxonomic level for calculation
+    -m, --method        Normalization method name
+    -h, --help      Show this help message.
     " 1>&2 
 }
 exit_abnormal() {                         # Function: Exit with error.
@@ -43,13 +45,9 @@ download_database() {
 
     mkdir -p "${db_path}/bac_na"
     echo -e "\033[46;37m>> STEP 1: Start downloading bacterial database (nucleic acid sequence reference) into: ${db_path}/bac_na \033[0m"
-    kraken2-build --download-library bacteria --db "${db_path}"/bac_na
+    echo -e "Note: this step may take a long time, due to kraken2 building effi"
+    kraken2-build --download-library bacteria --db "${db_path}"/bac_na --threads ${THREADS}
     echo -e "\033[46;37m>> Finish downloading bacterial database (nucleic acid sequence reference). \033[0m"
-
-    mkdir -p "${db_path}/bac_aa"
-    echo -e "\033[46;37m>> STEP 2: Start downloading bacterial database (amino acid sequence reference) into: ${db_path}/bac_aa \033[0m"
-    kraken2-build --download-library bacteria --protein --db "${db_path}/bac_aa"
-    echo -e "\033[46;37m>> Finish downloading bacterial database (amino acid sequence reference). \033[0m"
 }
 
 extract_matrix() {
@@ -96,6 +94,18 @@ main() {
                 fi
                 DB="$2"
                 download_database "${DB}"
+                shift 2
+                ;;
+            --t)
+                if "${extract_mode}"; then
+                    echo "ERROR: Cannot use --download-db with --extract-matrix"
+                    exit_abnormal
+                fi
+                if [ -z "$2" ]; then
+                    echo "ERROR: --download-db requires a given path"
+                    exit_abnormal
+                fi
+                THREADS="$2"
                 shift 2
                 ;;
             --extract-matrix)
