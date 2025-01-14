@@ -54,7 +54,7 @@ Additionally, if you want to run `bacp`, you need to manually install [netMHCpan
 
 For detailed usage: `bacNeo -h`.
 
-```bash
+```
 Usage: bacNeo2 [ --download-db DB | --extract-matrix -d DIR -l LEVEL -m METHOD ]
     --download-db     The path you would like to put reference databases into.
     --extract-matrix  Extract matrix using specified parameters
@@ -68,7 +68,7 @@ Usage: bacNeo2 [ --download-db DB | --extract-matrix -d DIR -l LEVEL -m METHOD ]
 
 `bacc` can extract the number of bacterial reads from genome or transcriptome datasets. See usage: `bacc -h`.
 
-```bash
+```
 Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -d DB ] [-l TAXONOMY] [ -c ]
     -1 Paired-end clean data (R1) in fastq format.
     -2 Paired-end clean data (R2) in fastq format.
@@ -109,7 +109,7 @@ bacc/
 
 `bach` can predict HLA alleles for each patient sample from genome datasets. See usage: `bach -h`.
 
-```bash
+```
 Usage: 
     For alignment workflow:
     bach -1 FQ1 -2 FQ2 -r REF -s SCAN -d DB -g GENES -o OUT [-t THREADS]
@@ -145,7 +145,7 @@ Usage:
 
 `bacp` can detect bacterial peptides from proteome datasets and predict HLA-peptide affinities based on results from `bach`. The reference should be provided by users. It is recommended to download reference protome from [UniProt](https://www.uniprot.org/). If no proteome dataset is available, `bacp` could also predict potential neoantigens based on bacteria identified by `bacc`. See usage: `bacp -h`.
 
-```bash
+```
 Usage: 
     For proteome workflow:
         bacp -p -i MS_DATA -r REF_DIR -d DB_DIR -a ALLELE_DIR -o OUTPUT [-t THREADS]
