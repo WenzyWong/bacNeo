@@ -168,8 +168,8 @@ Additionally, if you want to run `bacp`, you need to manually install [netMHCpan
         -t THREADS     Number of threads (Default: 16)
 
         Notes: 
-        1. The proteome workflow (-p) and peptide workflow (non-p) are mutually exclusive
-        2. Bach must be run first to identify HLA alleles for each patient
+        1. The proteome workflow (-p) and predicted peptide workflow (non -p) are mutually exclusive
+        2. bach must be run first to identify HLA alleles for each patient
         3. For multiple samples, use independent directories for each sample
     ```
 
