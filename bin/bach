@@ -4,10 +4,10 @@ FQ2=""
 REF=""
 SCAN=""
 DB=""
+BACC_PATH=""
 declare -a GENES
 OUT=""
 THREADS=16
-
 print_logo() {
   echo -e "\e[36m"
   echo '
@@ -31,20 +31,35 @@ print_logo() {
 
 usage() {                                 # Function: Print a help message.
   print_logo
-  echo "Usage: bach [ -1 FQ1 ] [ -2 FQ2 ] [ -r REF ] [ -s SCAN ] [ -d DB ] [ -g GENES ] [ -o OUT ] [ -t THREADS ] [ -c BACC_PATH ]
-  -1 Paired-end clean data (R1) in fastq format.
-  -2 Paired-end clean data (R2) in fastq format.
-  -r Reference fasta file for bwa alignment, either hg38 or hg19.
-  -s The directory path which you would like to install hla-scan into.
-  -d Database directory path. It's in 'reference' our tool package, named 'HLA-ALL.IMGT'.
-  -g The name(s) of HLA type(s).
-     HLA types include: HLA-A, HLA-B, HLA-C, HLA-E, HLA-F, HLA-G, MICA, MICB, HLA-DMA, HLA-DMB, HLA-DOA, HLA-DOB, HLA-DPA1, HLA-DPB1, HLA-DQA1, HLA-DQB1, HLA-DRA, HLA-DRB1, HLA-DRB5, TAP1, and TAP2.
-     We recommend you use HLA class I types (A, B, and C), if your are interested in intra-tumour bacterial neoantigens.
-     If you would like to impute multiple HLA types at once, you could input the types one by one, e.g., -g HLA-A -g HLA-B.
-  -o Output directory path.
-  -t Number of threads (Default threads = 16).
-  -c Directory path containing pre-processed BAM files (optional). If provided, alignment and sorting steps will be skipped.
-  If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample." 1>&2 
+  echo "Usage: 
+    For alignment workflow:
+      bach -1 FQ1 -2 FQ2 -r REF -s SCAN -d DB -g GENES -o OUT [-t THREADS]
+    
+    For pre-processed BAM workflow:
+      bach -c BACC_PATH -s SCAN -d DB -g GENES -o OUT [-t THREADS]
+
+    Required for alignment workflow:
+    -1 Paired-end clean data (R1) in fastq format
+    -2 Paired-end clean data (R2) in fastq format
+    -r Reference fasta file for bwa alignment, either hg38 or hg19
+
+    Required for pre-processed BAM workflow:
+    -c Directory path containing pre-processed BAM files
+
+    Required for both workflows:
+    -s The directory path which you would like to install hla-scan into
+    -d Database directory path. It's in 'reference' our tool package, named 'HLA-ALL.IMGT'
+    -g The name(s) of HLA type(s)
+      HLA types include: HLA-A, HLA-B, HLA-C, HLA-E, HLA-F, HLA-G, MICA, MICB, HLA-DMA, HLA-DMB, HLA-DOA, HLA-DOB, HLA-DPA1, HLA-DPB1, HLA-DQA1, HLA-DQB1, HLA-DRA, HLA-DRB1, HLA-DRB5, TAP1, and TAP2
+      We recommend you use HLA class I types (A, B, and C), if your are interested in intra-tumour bacterial neoantigens
+      If you would like to impute multiple HLA types at once, you could input the types one by one, e.g., -g HLA-A -g HLA-B
+    -o Output directory path
+    
+    Optional:
+    -t Number of threads (Default: 16)
+
+    Note: The alignment workflow (-1, -2, -r) and pre-processed BAM workflow (-c) are mutually exclusive. 
+    You must choose one workflow or the other." 1>&2 
 }
 exit_abnormal() {                         # Function: Exit with error.
   usage
@@ -72,6 +87,74 @@ while getopts ":1:2:r:s:d:g:o:t:c:" options; do
   esac
 done
 
+# Validate required parameters and workflow selection
+if [ -z "${SCAN}" ] || [ -z "${DB}" ] || [ ${#GENES[@]} -eq 0 ] || [ -z "${OUT}" ]; then
+    echo "Error: -s, -d, -g, and -o are required parameters for both workflows"
+    exit_abnormal
+fi
+
+# Check for mutually exclusive parameter groups
+if [ -n "${BACC_PATH}" ]; then
+    # Pre-processed BAM workflow
+    if [ -n "${FQ1}" ] || [ -n "${FQ2}" ] || [ -n "${REF}" ]; then
+        echo "Error: When using -c (pre-processed BAM workflow), you cannot specify -1, -2, or -r parameters"
+        exit_abnormal
+    fi
+else
+    # Alignment workflow
+    if [ -z "${FQ1}" ] || [ -z "${FQ2}" ] || [ -z "${REF}" ]; then
+        echo "Error: Alignment workflow requires all of -1, -2, and -r parameters"
+        exit_abnormal
+    fi
+fi
+
+if [ -e "${OUT}/align" ]
+then
+  echo ""
+else
+  mkdir "${OUT}/align"
+fi
+
+# Determine workflow and set up sample name and BAM path
+if [ -n "${BACC_PATH}" ]; then
+    # Get the first BAM file in the directory to determine sample name
+    BAM_FILE=$(ls ${BACC_PATH}/*_sorted.bam 2>/dev/null | head -n 1)
+    if [ -z "${BAM_FILE}" ]; then
+        echo "Error: No *_sorted.bam files found in ${BACC_PATH}"
+        exit 1
+    fi
+    
+    # Extract sample name from BAM file
+    SAMPLE=$(basename "${BAM_FILE}" _sorted.bam)
+    BAM="${BACC_PATH}/${SAMPLE}_sorted.bam"
+    
+    # Check BAM index
+    if [ ! -e "${BAM}.bai" ]; then
+        echo -e "\033[46;37m >> Creating BAM index... \033[0m"
+        samtools index "${BAM}"
+    fi
+    
+    echo -e "\033[46;37m >> Using pre-processed BAM file: ${BAM} \033[0m"
+else
+    # Alignment workflow
+    SAMPLE="${FQ1##*/}"
+    SAMPLE="${SAMPLE%%.*}"
+    SAM="${OUT}/align/${SAMPLE}.sam"
+    BAM="${OUT}/align/${SAMPLE}_sorted.bam"
+    
+    if [ -e "${BAM}" ]; then
+        echo -e "\033[46;37m >> STEP 0: Aligning completed, skipping... \033[0m"
+    else
+        echo -e "\033[46;37m >> STEP 0: Aligning... \033[0m"
+        bwa mem -t "${THREADS}" -M -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" "${REF}" "${FQ1}" "${FQ2}" > "${SAM}"
+        
+        echo -e "\033[46;37m >> STEP 1: Sorting... \033[0m"
+        samtools sort "${SAM}" -o "${BAM}" -@ "${THREADS}"
+        rm "${SAM}"
+        samtools index "${BAM}"
+    fi
+fi
+
 TOOL="${SCAN}/hla_scan_r_v2.1.4"
 if [ -e "${TOOL}" ]
 then
@@ -83,61 +166,6 @@ else
   chmod 777 "${TOOL}"
 fi
 
-SAMPLE="${FQ1##*/}"
-SAMPLE="${SAMPLE%%.*}"
-
-if [ -e "${OUT}/align" ]
-then
-  echo ""
-else
-  mkdir "${OUT}/align"
-fi
-
-# Determine the sample name and BAM file path
-if [ -n "${BACC_PATH}" ]; then
-  # If BACC_PATH is provided, extract sample name from FQ1 (or another identifier)
-  if [ -n "${FQ1}" ]; then
-    SAMPLE="${FQ1##*/}"
-    SAMPLE="${SAMPLE%%.*}"
-  else
-    echo "Error: When using -c option, you still need to specify the sample name using -1 option"
-    exit 1
-  fi
-  
-  # Check if the corresponding BAM file exists in the BACC_PATH directory
-  if [ -e "${BACC_PATH}/${SAMPLE}_sorted.bam" ]; then
-    BAM="${BACC_PATH}/${SAMPLE}_sorted.bam"
-    echo -e "\033[46;37m >> Using pre-processed BAM file: ${BAM} \033[0m"
-    
-    # Check if BAM index exists
-    if [ ! -e "${BAM}.bai" ]; then
-      echo -e "\033[46;37m >> Creating BAM index... \033[0m"
-      samtools index "${BAM}"
-    fi
-  else
-    echo "Error: Cannot find ${SAMPLE}_sorted.bam in ${BACC_PATH}"
-    exit 1
-  fi
-else
-  # Original sample name extraction and BAM file generation
-  SAMPLE="${FQ1##*/}"
-  SAMPLE="${SAMPLE%%.*}"
-  SAM="${OUT}/align/${SAMPLE}.sam"
-  BAM="${OUT}/align/${SAMPLE}_sorted.bam"
-  
-  if [ -e "${BAM}" ]; then
-    echo -e "\033[46;37m >> STEP 0: Aligning completed, skipping... \033[0m"
-  else
-    echo -e "\033[46;37m >> STEP 0: Aligning... \033[0m"
-    bwa mem -t "${THREADS}" -M -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" "${REF}" "${FQ1}" "${FQ2}" > "${SAM}"
-    
-    echo -e "\033[46;37m >> STEP 1: Sorting... \033[0m"
-    samtools sort "${SAM}" -o "${BAM}" -@ "${THREADS}"
-    rm "${SAM}"
-    samtools index "${BAM}"
-  fi
-fi
-
 echo -e "\033[46;37m >> STEP 2: Extracting chromesome 6... \033[0m"
 CHR6="${OUT}/align/${SAMPLE}_chr6.bam"
 samtools view -bh "${BAM}" 6 > "${CHR6}"
@@ -146,7 +174,7 @@ samtools index "${CHR6}" "${CHR6}.bai"
 echo -e "\033[46;37m >> STEP 3: Selected HLA types: ${GENES[@]} \033[0m"
 for GENE in "${GENES[@]}"; do
     echo -e "\033[46;37m HLA typing of ${GENE}... \033[0m"
-  "${TOOL}" -b "${BAM}" -v 38 -d "${DB}" -g "${GENE}" -t "${THREADS}" > "${OUT}/${GENE}.txt"
+    "${TOOL}" -b "${BAM}" -v 38 -d "${DB}" -g "${GENE}" -t "${THREADS}" > "${OUT}/${GENE}.txt"
 done
 
 main "$@"
