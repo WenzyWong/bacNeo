@@ -108,7 +108,7 @@ Additionally, if you want to run `bacp`, you need to manually install [netMHCpan
 - `bach` can predict HLA alleles for each patient sample from genome datasets. See usage: `bach -h`.
 
     ```
-    Usage: bach [ -1 FQ1 ] [ -2 FQ2 ] [ -r REF ] [ -s SCAN ] [ -d DB ] [ -g GENES ] [ -o OUT ] [ -t THREADS ]
+    Usage: bach [ -1 FQ1 ] [ -2 FQ2 ] [ -r REF ] [ -s SCAN ] [ -d DB ] [ -g GENES ] [ -o OUT ] [ -t THREADS ] [ -c BACC_PATH ]
         -1 Paired-end clean data (R1) in fastq format.
         -2 Paired-end clean data (R2) in fastq format.
         -r Reference fasta file for bwa alignment, either hg38 or hg19.
@@ -120,6 +120,7 @@ Additionally, if you want to run `bacp`, you need to manually install [netMHCpan
             If you would like to impute multiple HLA types at once, you could input the types one by one, e.g., -g HLA-A -g HLA-B.
         -o Output directory path.
         -t Number of threads (Default threads = 16).
+        -c Directory path containing pre-processed BAM files (optional). If provided, alignment and sorting steps will be skipped.
         If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample.
     ```
 
