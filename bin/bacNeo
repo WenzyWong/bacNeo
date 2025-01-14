@@ -45,7 +45,7 @@ download_database() {
 
     mkdir -p "${db_path}/bac_na"
     echo -e "\033[46;37m>> STEP 1: Start downloading bacterial database (nucleic acid sequence reference) into: ${db_path}/bac_na \033[0m"
-    echo -e "Note: this step may take a long time, due to kraken2 building effi"
+    echo -e "Note: this step may take a long time due to kraken2 database checking processes"
     kraken2-build --download-library bacteria --db "${db_path}"/bac_na --threads ${THREADS}
     echo -e "\033[46;37m>> Finish downloading bacterial database (nucleic acid sequence reference). \033[0m"
 }
