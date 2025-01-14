@@ -108,20 +108,35 @@ Additionally, if you want to run `bacp`, you need to manually install [netMHCpan
 - `bach` can predict HLA alleles for each patient sample from genome datasets. See usage: `bach -h`.
 
     ```
-    Usage: bach [ -1 FQ1 ] [ -2 FQ2 ] [ -r REF ] [ -s SCAN ] [ -d DB ] [ -g GENES ] [ -o OUT ] [ -t THREADS ] [ -c BACC_PATH ]
-        -1 Paired-end clean data (R1) in fastq format.
-        -2 Paired-end clean data (R2) in fastq format.
-        -r Reference fasta file for bwa alignment, either hg38 or hg19.
-        -s The directory path which you would like to install hla-scan into.
-        -d Database directory path. It's in 'reference' our tool package, named 'HLA-ALL.IMGT'.
-        -g The name(s) of HLA type(s).
-            HLA types include: HLA-A, HLA-B, HLA-C, HLA-E, HLA-F, HLA-G, MICA, MICB, HLA-DMA, HLA-DMB, HLA-DOA, HLA-DOB, HLA-DPA1, HLA-DPB1, HLA-DQA1, HLA-DQB1, HLA-DRA, HLA-DRB1, HLA-DRB5, TAP1, and TAP2.
-            We recommend you use HLA class I types (A, B, and C), if your are interested in intra-tumour bacterial neoantigens.
-            If you would like to impute multiple HLA types at once, you could input the types one by one, e.g., -g HLA-A -g HLA-B.
-        -o Output directory path.
-        -t Number of threads (Default threads = 16).
-        -c Directory path containing pre-processed BAM files (optional). If provided, alignment and sorting steps will be skipped.
-        If you have multiple sample files and want to run this command repeatedly, it is recommended to make independent directory for each sample.
+    Usage: 
+        For alignment workflow:
+        bach -1 FQ1 -2 FQ2 -r REF -s SCAN -d DB -g GENES -o OUT [-t THREADS]
+        
+        For pre-processed BAM workflow (if you have already used WES / WGS mode to run bacc, or you only have .bam file):
+        bach -c BACC_PATH -s SCAN -d DB -g GENES -o OUT [-t THREADS]
+
+        Required for alignment workflow:
+        -1 Paired-end clean data (R1) in fastq format
+        -2 Paired-end clean data (R2) in fastq format
+        -r Reference fasta file for bwa alignment, either hg38 or hg19
+
+        Required for pre-processed BAM workflow:
+        -c Directory path containing pre-processed BAM files
+
+        Required for both workflows:
+        -s The directory path which you would like to install hla-scan into
+        -d Database directory path. It's in 'reference' our tool package, named 'HLA-ALL.IMGT'
+        -g The name(s) of HLA type(s)
+        HLA types include: HLA-A, HLA-B, HLA-C, HLA-E, HLA-F, HLA-G, MICA, MICB, HLA-DMA, HLA-DMB, HLA-DOA, HLA-DOB, HLA-DPA1, HLA-DPB1, HLA-DQA1, HLA-DQB1, HLA-DRA, HLA-DRB1, HLA-DRB5, TAP1, and TAP2
+        We recommend you use HLA class I types (A, B, and C), if your are interested in intra-tumour bacterial neoantigens
+        If you would like to impute multiple HLA types at once, you could input the types one by one, e.g., -g HLA-A -g HLA-B
+        -o Output directory path
+        
+        Optional:
+        -t Number of threads (Default: 16)
+
+        Note: The alignment workflow (-1, -2, -r) and pre-processed BAM workflow (-c) are mutually exclusive. 
+        You must choose one workflow or the other.
     ```
 
 - `bacp` can detect bacterial peptides from proteome datasets and predict HLA-peptide affinities based on results from `bach`. The reference should be provided by users. It is recommended to download reference protome from [UniProt](https://www.uniprot.org/). If no proteome dataset is available, `bacp` could also predict potential neoantigens based on bacteria identified by `bacc`. See usage: `bacp -h`.
