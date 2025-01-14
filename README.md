@@ -55,13 +55,14 @@ Additionally, if you want to run `bacp`, you need to manually install [netMHCpan
 For detailed usage: `bacNeo -h`.
 
 ```
-Usage: bacNeo2 [ --download-db DB | --extract-matrix -d DIR -l LEVEL -m METHOD ]
-    --download-db     The path you would like to put reference databases into.
-    --extract-matrix  Extract matrix using specified parameters
-    -d, --dir        Directory path for matrix extraction
-    -l, --level      Taxonomic level for calculation
-    -m, --method     Normalization method name
-    -h, --help       Show this help message.
+Usage: bacNeo2 [ --download-db DB -t THREADS | --extract-matrix -d DIR -l LEVEL -m METHOD ]
+    --download-db       The path you would like to put reference databases into
+    -t                  Number of threads (Default threads = 16)
+    --extract-matrix    Extract matrix using specified parameters
+    -d, --dir           Directory path for matrix extraction
+    -l, --level         Taxonomic level for calculation
+    -m, --method        Normalization method name
+    -h, --help          Show this help message
 ```
 
 ### Command `bacc`
