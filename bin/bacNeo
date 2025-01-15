@@ -96,7 +96,7 @@ main() {
                 download_database "${DB}"
                 shift 2
                 ;;
-            --t)
+            -t)
                 if "${extract_mode}"; then
                     echo "ERROR: Cannot use --download-db with --extract-matrix"
                     exit_abnormal
