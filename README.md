@@ -218,6 +218,9 @@ do
     mkdir -p "${out_bacp}"
     bacp -i "${out_bacc}" -d ${db} -a "${out_bach}" -o "${out_bacp}"
 done
+
+bacNeo --extract-matrix -d "${out_bacp}" -l s -m abundance
+
 ```
 
 ## Requirements
