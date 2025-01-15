@@ -191,18 +191,19 @@ tool="${DIRECTORY_PATH_YOU_WOULD_LIKE_TO_INSTALL_REQUIRED_TOOLS_INTO}"
 db="${DIRECTORY_PATH_YOU_WOULD_LIKE_TO_INSTALL_REQUIRED_DATABASES_INTO}"
 out="${DIRECTORY_PATH_OF_OUTPUT}"
 
+bacNeo --download-db "${db}"
+
 # Assuming you have multiple samples
 ls "${dir_dt}" | while read sample
 do
     # Using paired-end WES fastq data as examples
-    fq1="${dir_dt}/${sample}/${sample}_R1.fq.gz"
-    fq2="${dir_dt}/${sample}/${sample}_R2.fq.gz"
+    fq1="${dir_dt}/${sample}/${sample}.R1.fq.gz"
+    fq2="${dir_dt}/${sample}/${sample}.R2.fq.gz"
     
     # Run bacc
     mkdir -p "${out}/bacc"
     out_bacc="${out}/bacc/${sample}"
     mkdir -p "${out_bacc}"
-    bacNeo --download-db "${db}"
     bacc -1 "${fq1}" -2 "${fq2}" -m WGS -g -r "${ref}" -o "${out_bacc}" -d "${db}" -l s
 
     # Run bach, using aligned .bam file from bacc result
