@@ -5,7 +5,6 @@ FQ2=""
 OMICS=""
 REF=""
 OUT=""
-ZIP=false
 THREADS=16
 DB=""
 declare -a TAXONOMY_LEVELS
@@ -35,11 +34,10 @@ print_logo() {
 
 usage() {
   print_logo
-  echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -d DB ] [-l TAXONOMY] [ -c ]
+  echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -d DB ] [-l TAXONOMY] [ -c ]
     -1 Paired-end clean data (R1) in fastq format.
     -2 Paired-end clean data (R2) in fastq format.
     -m Type of omics data. 'RNA' for transcriptome, 'WES'/'WGS' for genome.
-    -g [Optional] If the fastq file is zipped.
     -r Reference directory path for hisat2 alignment (if omics data is RNA-seq) or bwa alignment (if omics data is WES/WGS).
     -o Output directory path.
     -t Number of threads (Default threads = 16).
@@ -57,12 +55,11 @@ exit_abnormal() { # Exit with error.
   exit 1
 }
 
-while getopts ":1:2:m:gr:o:t:d:l:c" options; do
+while getopts ":1:2:m:r:o:t:d:l:c" options; do
     case "${options}" in
         1) FQ1="${OPTARG}" ;;
         2) FQ2="${OPTARG}" ;;
         m) OMICS="${OPTARG}" ;;
-        g) ZIP=true ;;
         r) REF="${OPTARG}" ;;
         o) OUT="${OPTARG}" ;;
         t) THREADS="${OPTARG}" ;;
@@ -80,16 +77,8 @@ while getopts ":1:2:m:gr:o:t:d:l:c" options; do
 done
 
 # Get sample name
-if [ "${ZIP}" = true ]; then
-    SAMPLE=$(basename "${FQ1}")
-    SAMPLE=${SAMPLE%.*.*}
-elif [ "${ZIP}" = false ]; then
-    SAMPLE=$(basename "${FQ1}")
-    SAMPLE=${SAMPLE%.*}
-else
-    echo -e "\033[31m Wrong parameter -g, please check the help file. \033[0m"
-    exit 1
-fi
+SAMPLE=$(basename "${FQ1}")
+SAMPLE=${SAMPLE%%.R[12]*}
 
 # Extract the correct path of bacNeo
 while read -r tmp_path; do
