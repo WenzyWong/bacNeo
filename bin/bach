@@ -3,11 +3,11 @@ FQ1=""
 FQ2=""
 REF=""
 SCAN=""
-DB=""
 BACC_PATH=""
 declare -a GENES
 OUT=""
 THREADS=16
+BACNEO_PATHS=$(echo "${PATH}" | tr ':' '\n' | grep 'bacNeo' | uniq | xargs dirname)
 print_logo() {
   echo -e "\e[36m"
   echo '
@@ -33,10 +33,10 @@ usage() {                                 # Function: Print a help message.
   print_logo
   echo "Usage: 
     For alignment workflow:
-      bach -1 FQ1 -2 FQ2 -r REF -s SCAN -d DB -g GENES -o OUT [-t THREADS]
+      bach -1 FQ1 -2 FQ2 -r REF -s SCAN -g GENES -o OUT [-t THREADS]
     
     For pre-processed BAM workflow (if you have already used WES / WGS mode to run bacc, or you only have .bam file):
-      bach -c BACC_PATH -s SCAN -d DB -g GENES -o OUT [-t THREADS]
+      bach -c BACC_PATH -s SCAN -g GENES -o OUT [-t THREADS]
 
     Required for alignment workflow:
     -1 Paired-end clean data (R1) in fastq format
@@ -66,13 +66,12 @@ exit_abnormal() {                         # Function: Exit with error.
   exit 1
 }
 
-while getopts ":1:2:r:s:d:g:o:t:c:" options; do
+while getopts ":1:2:r:s:g:o:t:c:" options; do
   case "${options}" in
     1) FQ1="${OPTARG}" ;;
     2) FQ2="${OPTARG}" ;;
     r) REF="${OPTARG}" ;;
     s) SCAN="${OPTARG}" ;;
-    d) DB="${OPTARG}" ;;
     g) GENES+=("${OPTARG}") ;;
     o) OUT="${OPTARG}" ;;
     t) THREADS="${OPTARG}" ;;
@@ -87,8 +86,21 @@ while getopts ":1:2:r:s:d:g:o:t:c:" options; do
   esac
 done
 
+# Extract the correct path of bacNeo
+while read -r tmp_path; do
+    if [ -f "${tmp_path}/bacNeo.yml" ] && [ -d "${tmp_path}/bin" ]; then
+        BACNEO="${tmp_path}"
+        break
+    fi
+done <<< "${BACNEO_PATHS}"
+if [ -z "${BACNEO}" ]; then
+    echo "The bacNeo path with the correct file structure was not found!"
+else
+    echo "The bacNeo path found is: ${BACNEO}"
+fi
+
 # Validate required parameters and workflow selection
-if [ -z "${SCAN}" ] || [ -z "${DB}" ] || [ ${#GENES[@]} -eq 0 ] || [ -z "${OUT}" ]; then
+if [ -z "${SCAN}" ] || [ ${#GENES[@]} -eq 0 ] || [ -z "${OUT}" ]; then
     echo "Error: -s, -d, -g, and -o are required parameters for both workflows"
     exit_abnormal
 fi
@@ -162,7 +174,7 @@ then
   chmod 777 "${TOOL}"
 else
   echo -e "\033[46;37m Installing hla-scan... \033[0m"
-  wget "https://github.com/SyntekabioTools/HLAscan/releases/download/v2.1.4/hla_scan_r_v2.1.4" ${TOOLDIR}
+  wget "https://github.com/SyntekabioTools/HLAscan/releases/download/v2.1.4/hla_scan_r_v2.1.4" ${SCAN}
   chmod 777 "${TOOL}"
 fi
 
@@ -174,5 +186,5 @@ samtools index "${CHR6}" "${CHR6}.bai"
 echo -e "\033[46;37m >> STEP 3: Selected HLA types: ${GENES[@]} \033[0m"
 for GENE in "${GENES[@]}"; do
     echo -e "\033[46;37m HLA typing of ${GENE}... \033[0m"
-    "${TOOL}" -b "${BAM}" -v 38 -d "${DB}" -g "${GENE}" -t "${THREADS}" > "${OUT}/${GENE}.txt"
+    "${TOOL}" -b "${BAM}" -v 38 -d "${BACNEO}/reference/HLA-ALL.IMGT" -g "${GENE}" -t "${THREADS}" > "${OUT}/${GENE}.txt"
 done

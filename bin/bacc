@@ -6,7 +6,6 @@ OMICS=""
 REF=""
 OUT=""
 THREADS=16
-DB=""
 declare -a TAXONOMY_LEVELS
 BACNEO_PATHS=$(echo "${PATH}" | tr ':' '\n' | grep 'bacNeo' | uniq | xargs dirname)
 RUN_CHECKM2=false
@@ -34,14 +33,13 @@ print_logo() {
 
 usage() {
   print_logo
-  echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -d DB ] [-l TAXONOMY] [ -c ]
+  echo "Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -r REF ] [ -o OUT ] [ -t THREADS ] [-l TAXONOMY] [ -c ]
     -1 Paired-end clean data (R1) in fastq format.
     -2 Paired-end clean data (R2) in fastq format.
     -m Type of omics data. 'RNA' for transcriptome, 'WES'/'WGS' for genome.
     -r Reference directory path for hisat2 alignment (if omics data is RNA-seq) or bwa alignment (if omics data is WES/WGS).
     -o Output directory path.
     -t Number of threads (Default threads = 16).
-    -d The directory path of your datasebases generated through bacNeo --download-db.
     -l Taxonomy level you would like to generate. 
        Taxonomy levels include: 'd' for Domain, 'p' for Phylum, 'c' for Class, 'o'for Order, 'f' for Family, 'g' for Genus, and 's' for Species. 
        Please ensure the level(s) you input is(are) included above. 
@@ -55,7 +53,7 @@ exit_abnormal() { # Exit with error.
   exit 1
 }
 
-while getopts ":1:2:m:r:o:t:d:l:c" options; do
+while getopts ":1:2:m:r:o:t:l:c" options; do
     case "${options}" in
         1) FQ1="${OPTARG}" ;;
         2) FQ2="${OPTARG}" ;;
@@ -63,7 +61,6 @@ while getopts ":1:2:m:r:o:t:d:l:c" options; do
         r) REF="${OPTARG}" ;;
         o) OUT="${OPTARG}" ;;
         t) THREADS="${OPTARG}" ;;
-        d) DB="${OPTARG}" ;;
         l) TAXONOMY_LEVELS+=("${OPTARG}") ;;
         c) RUN_CHECKM2=true ;;
         :)
@@ -130,7 +127,7 @@ echo -e "Unmapped reads converting to fastq format saved at: ${OUT}/${SAMPLE}_un
 
 echo -e "\033[46;37m >> STEP 5: Classifying microbe reads... \033[0m"
 kraken2 --threads "${THREADS}" \
-    --db "${DB}/bac_na" \
+    --db "${BACNEO}/reference/bac_na" \
     --paired "${OUT}/${SAMPLE}_unmap_R1.fq" "${OUT}/${SAMPLE}_unmap_R2.fq" \
     --output "${OUT}/${SAMPLE}.KRAKEN" \
     --report "${OUT}/${SAMPLE}.mpa" \
@@ -138,7 +135,7 @@ kraken2 --threads "${THREADS}" \
 echo -e "Report in mpa-style saved at: ${OUT}/${SAMPLE}.mpa"
 
 kraken2 --threads "${THREADS}" \
-    --db "${DB}/bac_na" \
+    --db "${BACNEO}/reference/bac_na" \
     --paired "${OUT}/${SAMPLE}_unmap_R1.fq" "${OUT}/${SAMPLE}_unmap_R2.fq" \
     --output "${OUT}/${SAMPLE}.KRAKEN" \
     --report "${OUT}/${SAMPLE}.standard"
@@ -179,7 +176,7 @@ if [ "${RUN_CHECKM2}" = true ]; then
         --threads "${THREADS}" \
         --input "${OUT}/${SAMPLE}_bacreads.fa" \
         --output-directory "${OUT}/checkm2_predict/" \
-        --database_path "${DB}/CheckM2_database/uniref100.KO.1.dmnd"
+        --database_path "${BACNEO}/reference/CheckM2_database/uniref100.KO.1.dmnd"
     mv "${OUT}/checkm2_predict/quality_report.tsv" "${OUT}/${SAMPLE}_quality_report.tsv"
     rm -rf "${OUT}/checkm2_predict/"
 fi

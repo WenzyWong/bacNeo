@@ -1,9 +1,9 @@
 #!/bin/bash
-DB=""
-BACC_DIR=""
+BACC_OUT_DIR=""
 TAXONOMY=""
 METHOD=""
 THREADS=16
+BACNEO_PATHS=$(echo "${PATH}" | tr ':' '\n' | grep 'bacNeo' | uniq | xargs dirname)
 
 print_logo() {
   echo -e "\e[36m"
@@ -20,8 +20,8 @@ print_logo() {
 
 usage() {    
     print_logo                             # Function: Print a help message.
-    echo "Usage: bacNeo [ --download-db DB -t THREADS | --extract-matrix -d DIR -l LEVEL -m METHOD ]
-    --download-db       The path you would like to put reference databases into
+    echo "Usage: bacNeo [ --download-db DB -t THREADS | --extract-matrix -d BACC_OUT_DIR -l TAXONOMY -m METHOD ]
+    --download-db       Download and build reference databases
     -t                  Number of threads (Default threads = 16)
     --extract-matrix    Extract matrix using specified parameters
     -d, --dir           Directory path for matrix extraction
@@ -35,11 +35,23 @@ exit_abnormal() {                         # Function: Exit with error.
   exit 1
 }
 
-download_database() {
-    local db_path="$1"
+# Extract the correct path of bacNeo
+while read -r tmp_path; do
+    if [ -f "${tmp_path}/bacNeo.yml" ] && [ -d "${tmp_path}/bin" ]; then
+        BACNEO="${tmp_path}"
+        break
+    fi
+done <<< "${BACNEO_PATHS}"
+if [ -z "${BACNEO}" ]; then
+    echo "The bacNeo path with the correct file structure was not found!"
+else
+    echo "The bacNeo path found is: ${BACNEO}"
+fi
+db_path="${BACNEO}/reference"
 
-    mkdir -p "${db_path}"
+download_database() {
     echo -e "\033[46;37m>> STEP 0: Start downloading bacteiral filtering reference into: ${db_path} \033[0m"
+    mkdir -p "${db_path}"
     checkm2 database --download --path "${db_path}"
     echo -e "\033[46;37m>> Finish downloading bacteiral filtering reference. \033[0m"
 
@@ -52,23 +64,7 @@ download_database() {
 }
 
 extract_matrix() {
-    BACNEO_PATHS=$(echo "${PATH}" | tr ':' '\n' | grep 'bacNeo' | uniq | xargs dirname)
-
-    while read -r tmp_path; do
-        if [ -f "${tmp_path}/bacNeo.yml" ] && [ -d "${tmp_path}/bin" ]; then
-            BACNEO="${tmp_path}"
-            break
-        fi
-    done <<< "${BACNEO_PATHS}"
-
-    if [ -z "${BACNEO}" ]; then
-        echo "The bacNeo path with the correct file structure was not found!"
-        exit 1
-    else
-        echo "The bacNeo path found is: ${BACNEO}"
-    fi
-
-    Rscript "${BACNEO}/utils/bacNeo_matrix.R" -d "${BACC_DIR}" -l "${TAXONOMY}" -m "${METHOD}"
+    Rscript "${BACNEO}/utils/bacNeo_matrix.R" -d "${BACC_OUT_DIR}" -l "${TAXONOMY}" -m "${METHOD}"
 }
 
 main() {
@@ -78,10 +74,10 @@ main() {
         exit 1
     fi
 
-    # Flag to track if extract_matrix is called
+    # Flag to track which mode is being used
+    local download_mode=false
     local extract_mode=false
 
-    # Parses command-line arguments
     while [ $# -gt 0 ]; do
         case "$1" in
             --download-db)
@@ -89,28 +85,19 @@ main() {
                     echo "ERROR: Cannot use --download-db with --extract-matrix"
                     exit_abnormal
                 fi
-                if [ -z "$2" ]; then
-                    echo "ERROR: --download-db requires a given path"
-                    exit_abnormal
-                fi
-                DB="$2"
-                download_database "${DB}"
-                shift 2
+                download_mode=true
+                shift
                 ;;
             -t)
-                if "${extract_mode}"; then
-                    echo "ERROR: Cannot use --download-db with --extract-matrix"
-                    exit_abnormal
-                fi
                 if [ -z "$2" ]; then
-                    echo "ERROR: --download-db requires a given path"
+                    echo "ERROR: -t requires a thread number"
                     exit_abnormal
                 fi
                 THREADS="$2"
                 shift 2
                 ;;
             --extract-matrix)
-                if [ ! -z "${DB}" ]; then
+                if "${download_mode}"; then
                     echo "ERROR: Cannot use --extract-matrix with --download-db"
                     exit_abnormal
                 fi
@@ -122,7 +109,7 @@ main() {
                     echo "ERROR: -d/--dir requires a directory path"
                     exit_abnormal
                 fi
-                BACC_DIR="$2"
+                BACC_OUT_DIR="$2"
                 shift 2
                 ;;
             -l|--level)
@@ -146,14 +133,16 @@ main() {
                 exit 0
                 ;;
             *)
-                echo "EROOR: Unkown parameter $1"
+                echo "ERROR: Unknown parameter $1"
                 exit_abnormal
                 ;;
         esac
     done
 
-    if "${extract_mode}"; then
-        if [ -z "${BACC_DIR}" ] || [ -z "${TAXONOMY}" ] || [ -z "${METHOD}" ]; then
+    if "${download_mode}"; then
+        download_database
+    elif "${extract_mode}"; then
+        if [ -z "${BACC_OUT_DIR}" ] || [ -z "${TAXONOMY}" ] || [ -z "${METHOD}" ]; then
             echo "ERROR: --extract-matrix requires -d/--dir, -l/--level, and -m/--method parameters"
             exit_abnormal
         fi
