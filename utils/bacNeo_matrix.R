@@ -31,10 +31,10 @@ parser$add_argument("-l", "--level",
     metavar = "TAXONOMY"
 )
 
-parser$add_argument("-m", "--method", 
+parser$add_argument("-n", "--norm", 
     type = "character",
-    help = "Data processing method (e.g., 'CPM')",
-    metavar = "METHOD"
+    help = "Data normalization method (e.g., 'CPM')",
+    metavar = "NORM"
 )
 
 # Parse command line arguments
@@ -46,7 +46,7 @@ if (is.null(args$dir) || is.null(args$level) || is.null(args$method)) {
 
 DIR_RES <- args$dir
 TAXONOMY <- args$level
-METHOD <- args$method
+NORM <- args$norm
 
 ######
 # Main
@@ -65,7 +65,7 @@ for (i in seq_along(dir_norm)) {
   
   curr_data <- read.delim(dir_norm[i])
   
-  curr_data <- curr_data[, c("species", METHOD)]
+  curr_data <- curr_data[, c("species", NORM)]
   colnames(curr_data)[2] <- SAMPLE[i]
   
   if (is.null(result)) {
@@ -79,5 +79,5 @@ result[is.na(result)] <- 0
 result <- result[order(rowMeans(result[, -1]), decreasing = T), ]
 
 write.table(result, sep = "\t", row.names = F, quote = F,
-            file = paste0(DIR_RES, "/matrix_", METHOD, "_", TAXONOMY, ".txt")
+            file = paste0(DIR_RES, "/matrix_", NORM, "_", TAXONOMY, ".txt")
             )
