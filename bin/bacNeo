@@ -20,7 +20,7 @@ print_logo() {
 
 usage() {    
     print_logo                             # Function: Print a help message.
-    echo "Usage: bacNeo [ --download-db DB -t THREADS | --extract-matrix -d BACC_OUT_DIR -l TAXONOMY -m METHOD ]
+    echo "Usage: bacNeo [ --download-db -t THREADS | --extract-matrix -d BACC_OUT_DIR -l TAXONOMY -m METHOD ]
     --download-db       Download and build reference databases
     -t                  Number of threads (Default threads = 16)
     --extract-matrix    Extract matrix using specified parameters
