@@ -76,6 +76,7 @@ done
 # Get sample name
 SAMPLE=$(basename "${FQ1}")
 SAMPLE=${SAMPLE%%.R[12]*}
+echo "Current sample: ${SAMPLE}"
 
 # Extract the correct path of bacNeo
 while read -r tmp_path; do
