@@ -70,11 +70,10 @@ Usage: bacNeo [ --download-db DB -t THREADS | --extract-matrix -d DIR -l LEVEL -
 `bacc` can extract the number of bacterial reads from genome or transcriptome datasets. See usage: `bacc -h`.
 
 ```
-Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -g ] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -d DB ] [-l TAXONOMY] [ -c ]
+Usage: bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -r REF ] [ -o OUT ] [ -t THREADS ] [ -d DB ] [-l TAXONOMY] [ -c ]
     -1 Paired-end clean data (R1) in fastq format.
     -2 Paired-end clean data (R2) in fastq format.
     -m Type of omics data. 'RNA' for transcriptome, 'WES'/'WGS' for genome.
-    -g [Optional] If the fastq file is zipped.
     -r Reference directory path for hisat2 alignment (if omics data is RNA-seq) or bwa alignment (if omics data is WES/WGS).
     -o Output directory path.
     -t Number of threads (Default threads = 16).
@@ -204,7 +203,7 @@ do
     mkdir -p "${out}/bacc"
     out_bacc="${out}/bacc/${sample}"
     mkdir -p "${out_bacc}"
-    bacc -1 "${fq1}" -2 "${fq2}" -m WGS -g -r "${ref}" -o "${out_bacc}" -d "${db}" -l s
+    bacc -1 "${fq1}" -2 "${fq2}" -m WGS -r "${ref}" -o "${out_bacc}" -d "${db}" -l s
 
     # Run bach, using aligned .bam file from bacc result
     mkdir -p "${out}/bach"
