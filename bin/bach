@@ -176,5 +176,3 @@ for GENE in "${GENES[@]}"; do
     echo -e "\033[46;37m HLA typing of ${GENE}... \033[0m"
     "${TOOL}" -b "${BAM}" -v 38 -d "${DB}" -g "${GENE}" -t "${THREADS}" > "${OUT}/${GENE}.txt"
 done
-
-main "$@"
