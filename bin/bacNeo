@@ -21,12 +21,17 @@ print_logo() {
 usage() {    
     print_logo                             # Function: Print a help message.
     echo "Usage: bacNeo [ --download-db -t THREADS | --extract-matrix -d BACC_OUT_DIR -l TAXONOMY -m METHOD ]
+    Required for downloading databases:
     --download-db       Download and build reference databases
+    Optional:
     -t                  Number of threads (Default threads = 16)
+
+    Required for extracting matrix after running bacp:
     --extract-matrix    Extract matrix using specified parameters
     -d, --dir           Directory path for matrix extraction
     -l, --level         Taxonomic level for calculation
     -m, --method        Normalization method name, including 'raw_count', 'CPM', and 'abundance'
+    
     -h, --help          Show this help message
     " 1>&2 
 }
