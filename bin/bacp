@@ -124,13 +124,12 @@ process_sequence() {
 
 # Using multi-threads to predict MHC-peptide binding affinity
 process_peptides() {
-    # Required parameters
-    local SAMPLE="$1"          # Sample identifier
-    local INPUT_PEP="$2"       # Input peptide file
-    local OUTPUT="$3"          # Output directory path
-    local THREADS="$4"         # Number of threads to use
 
-    # Validate required parameters
+    local SAMPLE="$1"
+    local INPUT_PEP="$2"
+    local OUTPUT="$3"
+    local THREADS="$4"
+
     if [[ -z "${SAMPLE}" || -z "${INPUT_PEP}" || -z "${OUTPUT}" || -z "${THREADS}" ]]; then
         echo "Error: Missing required parameters"
         echo "Usage: process_peptides SAMPLE INPUT_PEP OUTPUT THREADS"
@@ -143,13 +142,11 @@ process_peptides() {
     local OUT_WINDOW="${INPUT_PEP%.*}_windowed.txt"
     local TMP_WINDOW="${OUT_WINDOW}.temp"
 
-    # Process each sequence in the input file
     while read -r line; do
         [ -z "${line}" ] && continue
         process_sequence "${line}" >> "${TMP_WINDOW}"
     done < "${INPUT_PEP}"
     
-    # Filter sequences by length and clean up
     awk 'length($0) >= 5' "${TMP_WINDOW}" > "${OUT_WINDOW}"
     rm "${INPUT_PEP}"
     echo "Window sliding completed. Output saved to: ${OUT_WINDOW}"
@@ -158,11 +155,9 @@ process_peptides() {
     local TMP_DIR="${OUTPUT}/tmp_split_${SAMPLE}"
     mkdir -p "${TMP_DIR}"
 
-    # Calculate lines per thread for even distribution
     local TOTAL_LINES=$(wc -l < "${OUT_WINDOW}")
     local LINES_PER_THREAD=$(( (TOTAL_LINES + THREADS - 1) / THREADS ))
 
-    # Split input file into chunks for parallel processing
     split -l "${LINES_PER_THREAD}" "${OUT_WINDOW}" "${TMP_DIR}/split_"
 
     # Step 3: Process each HLA type
@@ -171,7 +166,6 @@ process_peptides() {
         echo "---------------------------------------------------------------------"
         echo "Predicting 04_affinity_with_HLAs for ${SAMPLE} - HLA allele ${TYPE}..."
         
-        # Process each split file in parallel
         for split_file in "${TMP_DIR}"/split_*; do
             (
                 local OUT_NETMHC="${OUTPUT}/04_affinity_with_HLAs/${SAMPLE}/${SAMPLE}_${TYPE}_$(basename "${split_file}").xls"
@@ -198,7 +192,6 @@ process_peptides() {
             mkdir -p "$(dirname "${OUTPUT_FILE}")"
             head -n 1 "${FIRST_RESULT}" > "${OUTPUT_FILE}"
             
-            # Append content from all split files and clean up
             for result in ${PATTERN}
             do
                 if [ -f "${result}" ]; then
@@ -211,7 +204,6 @@ process_peptides() {
         fi
     done < "${OUTPUT}/00_allele_summary/${SAMPLE}.txt"
 
-    # Clean up temporary directory
     rm -rf "${TMP_DIR}"
 }
 
