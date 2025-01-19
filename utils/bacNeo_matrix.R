@@ -39,7 +39,7 @@ parser$add_argument("-n", "--norm",
 
 # Parse command line arguments
 args <- parser$parse_args()
-if (is.null(args$dir) || is.null(args$level) || is.null(args$method)) {
+if (is.null(args$dir) || is.null(args$level) || is.null(args$norm)) {
     parser$print_help()
     stop("All required parameters must be provided. Use -h to see help.", call. = FALSE)
 }
