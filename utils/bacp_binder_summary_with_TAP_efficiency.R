@@ -86,7 +86,15 @@ calculate_tap_binding <- function(peptides_df) {
   # Function to calculate score for a single peptide
   score_peptide <- function(peptide) {
     aa_vector <- strsplit(peptide, "")[[1]]
-    position_scores <- sapply(1:9, function(i) scoring_matrix[aa_vector[i], i])
+    if(length(aa_vector) != 9) {
+      warning(sprintf("Peptide %s length is not 9", peptide))
+      return(NA)
+    }
+    position_scores <- sapply(1:9, function(i) {
+      if(aa_vector[i] %in% rownames(scoring_matrix)) {
+        scoring_matrix[aa_vector[i], i]
+      } else {0}
+    })
     sum(position_scores)
   }
   
