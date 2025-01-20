@@ -3,6 +3,7 @@ channels:
   - bioconda
   - defaults
 dependencies:
+  - tcsh
   - cd-hit
   - ucsc-fatrans
   - R >= 4.2.3
