@@ -158,7 +158,20 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
 
 ### Commands
 
-- `--download-db` would download all databases and references required in `bacc`, `bach`, and `bach`. The required data would be downloaded and installed in the `reference/` folder. After successfully running the command, the folder would look like:
+- `--download-db` would download all databases and references required in `--bacc`, `--bach`, and `--bach`. The required data would be downloaded and installed in the `reference/` folder. 
+
+    See usage:
+
+    ```
+    Usage:
+
+    bacNeo --download-db [-t THREADS]
+        --download-db       Download and build reference databases
+        -t                  [Optional] Number of threads (Default threads = 16)
+    Note: The process is potentially time-consuming
+    ```
+
+    After successfully running the command, the folder would look like:
 
     ```
     ├── bac_na
@@ -224,7 +237,31 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
     └── hla_scan_r_v2.1.4
     ```
 
-- `--bacc` can extract the number of bacterial reads from genome or transcriptome datasets, and output both raw counts and normalized data (CPM and / or abundance). The command will generate bacterial counts / CPM / abundance of your input taxonomic levels (using 'g' and 's' as an example). The outputs would look like:
+- `--bacc` can extract the number of bacterial reads from genome or transcriptome datasets, and output both raw counts and normalized data (CPM and / or abundance). The command will generate bacterial counts / CPM / abundance of your input taxonomic levels.
+
+    See usage:
+
+    ```
+    bacNeo --bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -r REF ] [ -o OUT ] [ -t THREADS ] [-l TAXONOMY_LEVEL]
+
+        --bacc              Identify bacterial reads and abundance from WGS / WES / RNA-seq data
+        -1                  Paired-end clean data (R1) in fastq format
+        -2                  Paired-end clean data (R2) in fastq format
+        -m                  Type of omics data. 'RNA' for transcriptome, 'WGS' / 'WES' for genome
+        -r                  If '-m RNA' is input: reference directory path for hisat2 alignment
+                            If '-m WGS/WES' is input: reference directory path for bwa alignment
+        -o                  Output directory path
+        -t                  [Optional] Number of threads (Default threads = 16)
+        -l                  Taxonomy level you would like to extract
+                            Taxonomy levels include: 'd' for Domain, 'p' for Phylum, 'c' for Class, 'o'for Order, 'f' for Family, 'g' for Genus, and 's' for Species
+                            Please ensure the level(s) you input is(are) included above
+                            If you would like to calculate bacterial counts and normalized counts in multiple levels, you could input the characters one by one, e.g., -l g -l s
+    Notes:
+        1. Make sure that you have already run 'bacNeo --download-db' to generate required databases
+        2. For multiple samples, it is recommended to use independent directories for each sample
+    ```
+
+    The outputs would look like (using 'g' and 's' as an example):
 
     ```
     bacc/
@@ -242,9 +279,51 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
            └── SAMPLE_unmap_R2.fq
     ```
 
-- `--extract-matrix` would aid in bacterial read count / CPM-normalization / abundance matrix. Make sure that you have already run `bacNeo --bacc` to produce bacterial information per sample. After successfully running the command, a `.txt` file would appear in the same directory path of your input path. For example, if you calculate the abundance matrix for species level, a file named `matrix_abundance_s.txt` would appear.
+- `--extract-matrix` would aid in bacterial read count / CPM-normalization / abundance matrix. Make sure that you have already run `bacNeo --bacc` to produce bacterial information per sample. 
 
-- `--bach` can predict HLA alleles for each patient sample from genome datasets. If you use the sampe genome data to run `bacNeo --bacc` previously, you could skip the alignment process to save time. Taking HLA-A as an example, the output folder would look like:
+    See usage:
+
+    ```
+    bacNeo --extract-matrix [ -d BACC_OUT_DIR ] [ -l TAXONOMY_LEVEL ] [ -n NORM ]
+
+        --extract-matrix    Extract matrix using specified parameters
+        -d, --dir           Directory path for matrix extraction
+        -l, --level         Taxonomic level for calculation
+        -n, --norm          Normalization method name, including 'raw_count', 'CPM', and 'abundance'
+
+    Note: Make sure that you have already run 'bacNeo --bacc' to extract bacterial reads in all samples
+    ```
+
+    After successfully running the command, a `.txt` file would appear in the same directory path of your input path. For example, if you calculate the abundance matrix for species level, a file named `matrix_abundance_s.txt` would appear.
+
+- `--bach` can predict HLA alleles for each patient sample from genome datasets. If you use the sampe genome data to run `bacNeo --bacc` previously, you could skip the alignment process to save time. 
+
+    See usage:
+
+    ```
+    (Predict HLA-alleles from WGS / WES data)
+        bacNeo --bach [ -1 FQ1 ] [ -2 FQ2 ] [ -r REF ] [ -g GENES ] [ -o OUT ] [ -t THREADS ]
+    (or if you have already used WGS / WES in 'Module 1 - Run bacc', you could also run)
+    bacNeo --bach [ -c BACC_PATH ] [ -g GENES ] [ -o OUT ] [ -t THREADS ]
+
+        --bach              Predict HLA-alleles
+        -1                  Paired-end clean data (R1) in fastq format
+        -2                  Paired-end clean data (R2) in fastq format
+        -r                  Reference fasta file for bwa alignment, either hg38 or hg19
+        -g                  The name(s) of HLA type(s)
+                            HLA types include: HLA-A, HLA-B, HLA-C, HLA-E, HLA-F, HLA-G, MICA, MICB, HLA-DMA, HLA-DMB, HLA-DOA, HLA-DOB, HLA-DPA1, HLA-DPB1, HLA-DQA1, HLA-DQB1, HLA-DRA, HLA-DRB1, HLA-DRB5, TAP1, and TAP2
+                            It is recommended to use HLA class I types (A, B, and C), if your are interested in intra-tumour bacterial neoantigens
+                            If you would like to impute multiple HLA types at once, you could input the types one by one, e.g., -g HLA-A -g HLA-B
+        -o                  Output directory path
+        -c                  Directory path containing pre-processed BAM files
+        -t                  [Optional] Number of threads (Default threads = 16)
+    Notes:
+        1. Make sure that you have already run 'bacNeo --download-db' to generate required databases
+        2. If you have genome data, it is recommended to run the second workflow to save space and time
+        3. For multiple samples, it is recommended to use independent directories for each sample
+    ```
+
+    Taking HLA-A as an example, the output folder would look like:
 
     ```
     bach/
@@ -255,7 +334,35 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
            └── HLA-A.txt
     ```
 
-- `--bacp` can detect bacterial peptides from proteome datasets and predict HLA-peptide affinities based on results from `bach`. The reference should be provided by users. It is recommended to download reference protome from [UniProt](https://www.uniprot.org/). If no proteome dataset is available, `bacp` could also predict potential neoantigens based on bacteria identified by `bacc`. You could select peptides accroding to `Strong_binders.csv` and `Weak_binders.csv` with both TAP transportation efficiencty and HLA binding affinity as filtering reference. You could also apply the sequence information in `03_amino_acid_processing/` to other filtering methods of your own interests. The output would look like:
+- `--bacp` can detect bacterial peptides from proteome datasets and predict HLA-peptide affinities based on results from `bach`. The reference should be provided by users. It is recommended to download reference protome from [UniProt](https://www.uniprot.org/). If no proteome dataset is available, `bacp` could also predict potential neoantigens based on bacteria identified by `bacc`. 
+
+    See usage:
+
+    ```
+    (Predict bacterial neoantigens based on proteome data)
+        bacNeo --bacp [ -p ] [ -i MS_INPUT ] [ -r REF_DIR ] [ -a ALLELE_DIR ] [ -o OUTPUT ] [ -t THREADS ]
+    (or predict bacterial neoantigens based on previously identified bacterial reads from 'Module 1 - Run bacc')
+        bacNeo --bacp [ -i BACC_OUT_DIR ] [ -a ALLELE_DIR ] [ -o OUTPUT ] [ -t THREADS ]
+
+        --bacp              Predict bacterial neoantigens
+        -p                  Flag for proteome data analysis, input this parameter only when you have proteome dataset
+        -i                  Directory containing MS data in '.d' format (-p)
+                            or
+                            Directory containing bacc output (non -p)
+        -r                  [Only required when '-p' is input]
+                            Directory containing reference proteome fasta files from UniProt (https://www.uniprot.org/)
+                            Recommend a clean directory with only fasta files
+        -a                  Directory containing bach results, with sample-specific folders
+        -o                  Output directory path
+        -t                  [Optional] Number of threads (Default threads = 16).
+    Notes:
+        1. The proteome workflow (-p) and predicted peptide workflow (non -p) are mutually exclusive
+        2. For both (-p) and (non -p) workflow, make sure that you have already run 'bacNeo --download-db' and 'bacNeo --bach'
+        3. For (non -p) workflow, make sure that you have already run 'bacNeo --bacc'
+        4. For multiple samples, you could input them all at one, based on the directory path of 'bacNeo --bach' and / or 'bacNeo --bacc' output
+    ```
+
+    You could select peptides accroding to `Strong_binders.csv` and `Weak_binders.csv` with both TAP transportation efficiencty and HLA binding affinity as filtering reference. You could also apply the sequence information in `03_amino_acid_processing/` to other filtering methods of your own interests. The output would look like:
 
     ```
     bacp/
