@@ -1,13 +1,47 @@
 #!/bin/bash
-BACC_OUT_DIR=""
-TAXONOMY=""
-METHOD=""
-THREADS=16
-BACNEO_PATHS=$(echo "${PATH}" | tr ':' '\n' | grep 'bacNeo' | uniq | xargs dirname)
+# Global configuration
+declare -A GLOBAL_CONFIG
+
+init_global_config() {
+    GLOBAL_CONFIG["THREADS"]=16
+    
+    local bacneo_paths
+    bacneo_paths=$(echo -e "${PATH}" | tr ':' '\n' | grep 'bacNeo' | uniq | xargs dirname)
+    local bacneo_found=false
+    
+    while read -r tmp_path; do
+        if [ -f "${tmp_path}/bacNeo.yml" ] && [ -d "${tmp_path}/bin" ]; then
+            GLOBAL_CONFIG["BACNEO"]="${tmp_path}"
+            bacneo_found=true
+            break
+        fi
+    done <<< "${bacneo_paths}"
+    
+    if ! ${bacneo_found}; then
+        echo -e "Error: The bacNeo path with the correct file structure was not found!" >&2
+        return 1
+    fi
+    
+    GLOBAL_CONFIG["DB"]="${GLOBAL_CONFIG["BACNEO"]}/reference"
+    
+    if [ ! -d "${GLOBAL_CONFIG["DB"]}" ]; then
+        echo -e "Error: Reference directory not found: ${GLOBAL_CONFIG["DB"]}" >&2
+        return 1
+    fi
+    
+    echo -e "bacNeo path found in: ${GLOBAL_CONFIG["BACNEO"]}"
+    echo -e "Reference directory: ${GLOBAL_CONFIG["DB"]}"
+    return 0
+}
+
+exit_abnormal() {
+    usage
+    exit 1
+}
 
 print_logo() {
   echo -e "\e[36m"
-  echo '
+  echo -e '
                _                 _   _            
               | |               | \ | |           
               | |__   __ _  ___ |  \| | ___  ___  
@@ -17,142 +51,1344 @@ print_logo() {
   '
   echo -e "\e[0m"
 }
-
 usage() {    
-    print_logo                             # Function: Print a help message.
-    echo "Usage: bacNeo [ --download-db -t THREADS | --extract-matrix -d BACC_OUT_DIR -l TAXONOMY -m METHOD ]
-    Required for downloading databases:
-    --download-db       Download and build reference databases
-    Optional:
-    -t                  Number of threads (Default threads = 16)
-
-    Required for extracting matrix after running bacp:
-    --extract-matrix    Extract matrix using specified parameters
-    -d, --dir           Directory path for matrix extraction
-    -l, --level         Taxonomic level for calculation
-    -m, --method        Normalization method name, including 'raw_count', 'CPM', and 'abundance'
+    print_logo
+    echo -e "
     
-    -h, --help          Show this help message
+    Thank you for downloading bacNeo!
+    
+    The tool is developped for predicting bacteria-derived neoantigens
+    
+    bacNeo contains five modules, please check the usage down below
+
+    Usage:
+
+    --- Module 0 - Download databases
+        (Download and build reference databases)
+            bacNeo --download-db [-t THREADS]
+                --download-db       Download and build reference databases
+                -t                  [Optional] Number of threads (Default threads = 16)
+        Note: The process is potentially time-consuming
+        
+    --- Module 1 - Run bacc
+        (Identify bacterial reads and abundance from WGS / WES / RNA-seq data)
+            bacNeo --bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -r REF ] [ -o OUT ] [ -t THREADS ] [-l TAXONOMY_LEVEL]
+
+                --bacc              Identify bacterial reads and abundance from WGS / WES / RNA-seq data
+                -1                  Paired-end clean data (R1) in fastq format
+                -2                  Paired-end clean data (R2) in fastq format
+                -m                  Type of omics data. 'RNA' for transcriptome, 'WGS' / 'WES' for genome
+                -r                  If '-m RNA' is input: reference directory path for hisat2 alignment
+                                    If '-m WGS/WES' is input: reference directory path for bwa alignment
+                -o                  Output directory path
+                -t                  [Optional] Number of threads (Default threads = 16)
+                -l                  Taxonomy level you would like to extract
+                                    Taxonomy levels include: 'd' for Domain, 'p' for Phylum, 'c' for Class, 'o'for Order, 'f' for Family, 'g' for Genus, and 's' for Species
+                                    Please ensure the level(s) you input is(are) included above
+                                    If you would like to calculate bacterial counts and normalized counts in multiple levels, you could input the characters one by one, e.g., -l g -l s
+        Notes:
+            1. Make sure that you have already run 'bacNeo --download-db' to generate required databases
+            2. For multiple samples, it is recommended to use independent directories for each sample
+
+    --- Module 2 - Extract matrix
+        (Extract counts / normalized counts after running 'Module 1 - BACC')
+            bacNeo --extract-matrix [ -d BACC_OUT_DIR ] [ -l TAXONOMY_LEVEL ] [ -n NORM ]
+
+                --extract-matrix    Extract matrix using specified parameters
+                -d, --dir           Directory path for matrix extraction
+                -l, --level         Taxonomic level for calculation
+                -n, --norm          Normalization method name, including 'raw_count', 'CPM', and 'abundance'
+        Note: Make sure that you have already run 'bacNeo --bacc' to extract bacterial reads in all samples
+        
+    --- Module 3 - Run bach
+        (Predict HLA-alleles from WGS / WES data)
+            bacNeo --bach [ -1 FQ1 ] [ -2 FQ2 ] [ -r REF ] [ -g GENES ] [ -o OUT ] [ -t THREADS ]
+        (or if you have already used WGS / WES in 'Module 1 - Run bacc', you could also run)
+            bacNeo --bach [ -c BACC_PATH ] [ -g GENES ] [ -o OUT ] [ -t THREADS ]
+
+                --bach              Predict HLA-alleles
+                -1                  Paired-end clean data (R1) in fastq format
+                -2                  Paired-end clean data (R2) in fastq format
+                -r                  Reference fasta file for bwa alignment, either hg38 or hg19
+                -g                  The name(s) of HLA type(s)
+                                    HLA types include: HLA-A, HLA-B, HLA-C, HLA-E, HLA-F, HLA-G, MICA, MICB, HLA-DMA, HLA-DMB, HLA-DOA, HLA-DOB, HLA-DPA1, HLA-DPB1, HLA-DQA1, HLA-DQB1, HLA-DRA, HLA-DRB1, HLA-DRB5, TAP1, and TAP2
+                                    It is recommended to use HLA class I types (A, B, and C), if your are interested in intra-tumour bacterial neoantigens
+                                    If you would like to impute multiple HLA types at once, you could input the types one by one, e.g., -g HLA-A -g HLA-B
+                -o                  Output directory path
+                -c                  Directory path containing pre-processed BAM files
+                -t                  [Optional] Number of threads (Default threads = 16)
+        Notes:
+            1. Make sure that you have already run 'bacNeo --download-db' to generate required databases
+            2. If you have genome data, it is recommended to run the second workflow to save space and time
+            3. For multiple samples, it is recommended to use independent directories for each sample
+
+    --- Module 4 - Run bacp
+        (Predict bacterial neoantigens based on proteome data)
+            bacNeo --bacp [ -p ] [ -i MS_INPUT ] [ -r REF_DIR ] [ -a ALLELE_DIR ] [ -o OUTPUT ] [ -t THREADS ]
+        (or predict bacterial neoantigens based on previously identified bacterial reads from 'Module 1 - Run bacc')
+            bacNeo --bacp [ -i BACC_OUT_DIR ] [ -a ALLELE_DIR ] [ -o OUTPUT ] [ -t THREADS ]
+
+                --bacp              Predict bacterial neoantigens
+                -p                  Flag for proteome data analysis, input this parameter only when you have proteome dataset
+                -i                  Directory containing MS data in '.d' format (-p)
+                                    or
+                                    Directory containing bacc output (non -p)
+                -r                  [Only required when '-p' is input]
+                                    Directory containing reference proteome fasta files from UniProt (https://www.uniprot.org/)
+                                    Recommend a clean directory with only fasta files
+                -a                  Directory containing bach results, with sample-specific folders
+                -o                  Output directory path
+                -t                  [Optional] Number of threads (Default threads = 16).
+        Notes: 
+            1. The proteome workflow (-p) and predicted peptide workflow (non -p) are mutually exclusive
+            2. For both (-p) and (non -p) workflow, make sure that you have already run 'bacNeo --download-db' and 'bacNeo --bach' 
+            3. For (non -p) workflow, make sure that you have already run 'bacNeo --bacc'
+            4. For multiple samples, you could input them all at one, based on the directory path of 'bacNeo --bach' and / or 'bacNeo --bacc' output
+    
+    -h, --help                      Show this help message
     " 1>&2 
 }
-exit_abnormal() {                         # Function: Exit with error.
-  usage
-  exit 1
+# Parameter validation functions
+validate_bacc_params() {
+    local -n params=$1
+    local -n tax_levels=$2
+    local errors=()
+    
+    [[ -z "${params[FQ1]}" ]] && errors+=("Missing required parameter: -1 (R1 fastq)")
+    [[ -z "${params[FQ2]}" ]] && errors+=("Missing required parameter: -2 (R2 fastq)")
+    [[ -z "${params[OMICS]}" ]] && errors+=("Missing required parameter: -m (omics type)")
+    [[ -z "${params[REF]}" ]] && errors+=("Missing required parameter: -r (reference)")
+    [[ -z "${params[OUT]}" ]] && errors+=("Missing required parameter: -o (output directory)")
+    
+    if [[ -n "${params[OMICS]}" && ! "${params[OMICS]}" =~ ^(RNA|WGS|WES)$ ]]; then
+        errors+=("Invalid omics type: ${params[OMICS]}. Must be RNA, WGS, or WES")
+    fi
+    
+    if [ ${#tax_levels[@]} -eq 0 ]; then
+        errors+=("At least one taxonomy level (-l) must be specified")
+    else
+        local valid_levels=("d" "p" "c" "o" "f" "g" "s")
+        for level in "${tax_levels[@]}"; do
+            local valid=false
+            for valid_level in "${valid_levels[@]}"; do
+                if [[ "${level}" == "${valid_level}" ]]; then
+                    valid=true
+                    break
+                fi
+            done
+            if ! ${valid}; then
+                errors+=("Invalid taxonomy level: ${level}. Must be one of: ${valid_levels[*]}")
+            fi
+        done
+    fi
+    
+    if [[ -n "${params[OUT]}" ]]; then
+        mkdir -p "${params[OUT]}"
+    fi
+    
+    if ((${#errors[@]} > 0)); then
+        printf '%s\n' "${errors[@]}"
+        return 1
+    fi
+
+    return 0
+}
+validate_matrix_params() {
+    local -n params=$1
+    local -n tax_levels=$2
+    local errors=()
+    
+    [[ -z "${params[BACC_OUT_DIR]}" ]] && errors+=("Missing required parameter: -d (directory path of bacc output)")
+    [[ -z "${params[NORM]}" ]] && errors+=("Missing required parameter: -n (nomalization method)")
+    
+    if [ ${#tax_levels[@]} -eq 0 ]; then
+        errors+=("At least one taxonomy level (-l) must be specified")
+    else
+        local valid_levels=("d" "p" "c" "o" "f" "g" "s")
+        for level in "${tax_levels[@]}"; do
+            local valid=false
+            for valid_level in "${valid_levels[@]}"; do
+                if [[ "${level}" == "${valid_level}" ]]; then
+                    valid=true
+                    break
+                fi
+            done
+            if ! ${valid}; then
+                errors+=("Invalid taxonomy level: ${level}. Must be one of: ${valid_levels[*]}")
+            fi
+        done
+    fi
+
+    # Validate NORM
+    if [[ -n "${params[NORM]}" && ! "${params[NORM]}" =~ ^(raw_count|CPM|abundance)$ ]]; then
+        errors+=("Invalid normalization type: ${params[NORM]}. Must be raw_count, CPM, or abundance")
+    fi
+
+    if ((${#errors[@]} > 0)); then
+        printf '%s\n' "${errors[@]}"
+        return 1
+    fi
+
+    return 0
+}
+validate_bach_params() {
+    local -n params=$1
+    local -n genes=$2
+    local errors=()
+    
+    # Required parameters for both workflows
+    [[ -z "${params[OUT]}" ]] && errors+=("Missing required parameter: -o (output path)")
+    
+    # Workflow detection and validation
+    local using_bam=false
+    local using_alignment=false
+    
+    if [[ -n "${params[BACC_PATH]}" ]]; then
+        using_bam=true
+        [[ ! -d "${params[BACC_PATH]}" ]] && errors+=("BAM directory not found: ${params[BACC_PATH]}")
+    fi
+    
+    if [[ -n "${params[FQ1]}" ]] || [[ -n "${params[FQ2]}" ]] || [[ -n "${params[REF]}" ]]; then
+        using_alignment=true
+        [[ -z "${params[FQ1]}" ]] && errors+=("Missing required parameter for alignment workflow: -1 (R1 fastq)")
+        [[ -z "${params[FQ2]}" ]] && errors+=("Missing required parameter for alignment workflow: -2 (R2 fastq)")
+        [[ -z "${params[REF]}" ]] && errors+=("Missing required parameter for alignment workflow: -r (reference file)")
+    fi
+    
+    if ! ${using_bam} && ! ${using_alignment}; then
+        errors+=("Must specify either alignment workflow (-1, -2, -r) or pre-processed BAM workflow (-c)")
+    elif ${using_bam} && ${using_alignment}; then
+        errors+=("Cannot use both alignment and pre-processed BAM workflows simultaneously")
+    fi
+    
+    # Validate HLA genes
+    local valid_genes=(
+        "HLA-A" "HLA-B" "HLA-C" "HLA-E" "HLA-F" "HLA-G" 
+        "MICA" "MICB" "HLA-DMA" "HLA-DMB" "HLA-DOA" "HLA-DOB" 
+        "HLA-DPA1" "HLA-DPB1" "HLA-DQA1" "HLA-DQB1" "HLA-DRA" 
+        "HLA-DRB1" "HLA-DRB5" "TAP1" "TAP2"
+    )
+    for gene in "${genes[@]}"; do
+        local valid=false
+        for valid_gene in "${valid_genes[@]}"; do
+            if [[ "${gene}" == "${valid_gene}" ]]; then
+                valid=true
+                break
+            fi
+        done
+        if ! ${valid}; then
+            errors+=("Invalid HLA gene: ${gene}. Must be one of: ${valid_genes[*]}")
+        fi
+    done
+    
+    # Create output directory if it doesn't exist
+    if [[ -n "${params[OUT]}" ]]; then
+        mkdir -p "${params[OUT]}"
+    fi
+    
+    if ((${#errors[@]} > 0)); then
+        printf '%s\n' "${errors[@]}"
+        return 1
+    fi
+    return 0
+}
+validate_bacp_params() {
+    local -n params=$1
+    local errors=()
+    
+    [[ -z "${params[INPUT_DIR]}" ]] && errors+=("Missing required parameter: -i (input directory)")
+    [[ -z "${params[ALLELE_DIR]}" ]] && errors+=("Missing required parameter: -a (allele directory)")
+    [[ -z "${params[OUT]}" ]] && errors+=("Missing required parameter: -o (output directory)")
+    
+    local is_proteome=false
+    [[ "${params[PROTEOME_FLAG]}" == true ]] && is_proteome=true
+    
+    # Exclusive file check
+    if ${is_proteome}; then
+        # Proteome workflow validation
+        [[ -z "${params[REF_DIR]}" ]] && errors+=("Proteome workflow requires -r (reference proteome directory)")
+        
+        if [[ -d "${params[INPUT_DIR]}" ]]; then
+            local d_files_count
+            d_files_count=$(find "${params[INPUT_DIR]}" -maxdepth 1 -name "*.d" -type d | wc -l)
+            if (( d_files_count == 0 )); then
+                errors+=("No .d format files found in MS data directory: ${params[INPUT_DIR]}")
+            fi
+        fi
+        
+        if [[ -d "${params[REF_DIR]}" ]]; then
+            local non_fasta_count
+            non_fasta_count=$(find "${params[REF_DIR]}" -maxdepth 1 -type f ! -name "*.fasta" ! -name "*.fa" | wc -l)
+            if (( non_fasta_count > 0 )); then
+                errors+=("Reference proteome directory contains non-fasta files: ${params[REF_DIR]}")
+            fi
+        fi
+    else
+        # Non-proteome workflow validation
+        [[ -n "${params[REF_DIR]}" ]] && errors+=("Reference proteome directory (-r) should not be specified for non-proteome workflow")
+    fi
+    
+    if [[ -n "${params[OUT]}" ]]; then
+        mkdir -p "${params[OUT]}"
+    fi
+    
+    if ((${#errors[@]} > 0)); then
+        printf '%s\n' "${errors[@]}"
+        return 1
+    fi
+
+    return 0
 }
 
-# Extract the correct path of bacNeo
-while read -r tmp_path; do
-    if [ -f "${tmp_path}/bacNeo.yml" ] && [ -d "${tmp_path}/bin" ]; then
-        BACNEO="${tmp_path}"
-        break
-    fi
-done <<< "${BACNEO_PATHS}"
-if [ -z "${BACNEO}" ]; then
-    echo "The bacNeo path with the correct file structure was not found!"
-else
-    echo "The bacNeo path found is: ${BACNEO}"
-fi
-db_path="${BACNEO}/reference"
+#################
+# Other functions
+## Function used in BACP: Window sliding
+process_sequence() {
+    local sequence="${1}"
+    local window_size=9
+    local step_size=3
+    local seq_length=${#sequence}
+    local max_start=$((seq_length - window_size))
+    
+    for ((i=0; i<=max_start; i+=step_size)); do
+        echo -e "${sequence:$i:$window_size}"
+    done
+}
+## Function used in BACP: Using multi-threads to predict MHC-peptide binding affinity
+process_peptides() {
+    local SAMPLE="$1"
+    local INPUT_PEP="$2"
+    local OUTPUT="$3"
+    local THREADS="$4"
 
+    if [[ -z "${SAMPLE}" || -z "${INPUT_PEP}" || -z "${OUTPUT}" || -z "${THREADS}" ]]; then
+        echo -e "Error: Missing required parameters"
+        echo -e "Usage: process_peptides SAMPLE INPUT_PEP OUTPUT THREADS"
+        return 1
+    fi
+
+    # Step 1: Window sliding
+    echo -e "---------------------------------------------------------------------"
+    echo -e "Processing sample ${SAMPLE}: Window sliding..."
+    local OUT_WINDOW="${INPUT_PEP%.*}_windowed.txt"
+    local TMP_WINDOW="${OUT_WINDOW}.temp"
+
+    while read -r line; do
+        [ -z "${line}" ] && continue
+        process_sequence "${line}" >> "${TMP_WINDOW}"
+    done < "${INPUT_PEP}"
+    
+    awk 'length($0) >= 5' "${TMP_WINDOW}" > "${OUT_WINDOW}"
+    rm "${INPUT_PEP}"
+    echo -e "Window sliding completed. Output saved to: ${OUT_WINDOW}"
+
+    # Step 2: Split file for parallel processing
+    local TMP_DIR="${OUTPUT}/tmp_split_${SAMPLE}"
+    mkdir -p "${TMP_DIR}"
+
+    local TOTAL_LINES
+    TOTAL_LINES=$(wc -l < "${OUT_WINDOW}")
+    local LINES_PER_THREAD=$(( (TOTAL_LINES + THREADS - 1) / THREADS ))
+
+    split -l "${LINES_PER_THREAD}" "${OUT_WINDOW}" "${TMP_DIR}/split_"
+
+    # Step 3: Process each HLA type
+    mkdir -p "${OUTPUT}/04_affinity_with_HLAs/${SAMPLE}"
+    while read -r TYPE; do
+        echo -e "---------------------------------------------------------------------"
+        echo -e "Predicting 04_affinity_with_HLAs for ${SAMPLE} - HLA allele ${TYPE}..."
+        for split_file in "${TMP_DIR}"/split_*; do
+            (
+                local SAFE_TYPE
+                SAFE_TYPE=$(echo "${TYPE}" | tr ':' '_')
+                local OUT_NETMHC
+                OUT_NETMHC="${OUTPUT}/04_affinity_with_HLAs/${SAMPLE}/${SAMPLE}_${SAFE_TYPE}_$(basename "${split_file}").xls"
+                netMHCpan -p "${split_file}" -BA -xls -a "${TYPE}" -xlsfile "${OUT_NETMHC}" > /dev/null 2>&1
+            ) &
+            
+            # Control number of concurrent jobs
+            while [ "$(jobs -r | wc -l)" -ge "${THREADS}" ]; do
+                sleep 1
+            done
+        done
+        wait
+        # Step 4: Combine results from all threads
+        echo "---------------------------------------------------------------------"
+        echo "Combining multi-threads results..."
+        local SAFE_TYPE
+        SAFE_TYPE=$(echo "${TYPE}" | tr ':' '_')
+        local OUTPUT_FILE="${OUTPUT}/04_affinity_with_HLAs/${SAMPLE}/${SAMPLE}_${SAFE_TYPE}.xls"
+        local PATTERN="${OUTPUT}/04_affinity_with_HLAs/${SAMPLE}/${SAMPLE}_${SAFE_TYPE}_split_*"
+
+        local FIRST_RESULT
+        FIRST_RESULT=$(ls ${PATTERN} 2>/dev/null | head -n 1)
+
+        if [ -n "${FIRST_RESULT}" ]; then
+            mkdir -p "$(dirname "${OUTPUT_FILE}")"
+            head -n 1 "${FIRST_RESULT}" > "${OUTPUT_FILE}"
+            
+            for result in ${PATTERN}
+            do
+                if [ -f "${result}" ]; then
+                    tail -n +2 "${result}" >> "${OUTPUT_FILE}"
+                    rm -f "${result}"
+                fi
+            done
+        else
+            echo "Warning: No split files found matching pattern: ${PATTERN}"
+        fi
+    done < "${OUTPUT}/00_allele_summary/${SAMPLE}.txt"
+
+    rm -rf "${TMP_DIR}"
+}
+
+#################################
+# Functions for different modules
+## Module 0 - Downoad database
 download_database() {
-    echo -e "\033[46;37m>> STEP 0: Start downloading bacteiral filtering reference into: ${db_path} \033[0m"
-    checkm2 database --download --path "${db_path}"
+    echo -e "\033[46;37m>> STEP 0: Start downloading bacteiral filtering reference into: ${GLOBAL_CONFIG[DB]} \033[0m"
+    checkm2 database --download --path "${GLOBAL_CONFIG[DB]}"
     echo -e "\033[46;37m>> Finish downloading bacteiral filtering reference. \033[0m"
 
-    mkdir -p "${db_path}/bac_na"
-    echo -e "\033[46;37m>> STEP 1: Start downloading bacterial database (nucleic acid sequence reference) into: ${db_path}/bac_na \033[0m"
+    mkdir -p "${GLOBAL_CONFIG[DB]}/bac_na"
+    echo -e "\033[46;37m>> STEP 1: Start downloading bacterial database (nucleic acid sequence reference) into: ${GLOBAL_CONFIG[DB]}/bac_na \033[0m"
     echo -e "Note: this step may take a long time due to kraken2 database checking processes"
-    kraken2-build --download-taxonomy --db "${db_path}/bac_na"
-    kraken2-build --download-library bacteria --db "${db_path}/bac_na"
-    kraken2-build --build --db "${db_path}/bac_na" --threads "${THREADS}"
+    kraken2-build --download-taxonomy --db "${GLOBAL_CONFIG[DB]}/bac_na"
+    kraken2-build --download-library bacteria --db "${GLOBAL_CONFIG[DB]}/bac_na"
+    kraken2-build --build --db "${GLOBAL_CONFIG[DB]}/bac_na" --threads "${GLOBAL_CONFIG[THREADS]}"
     echo -e "\033[46;37m>> Finish downloading bacterial database (nucleic acid sequence reference). \033[0m"
 }
+## Module 1 - Run bacc
+run_bacc() {
+    declare -A PARAMS
+    PARAMS["THREADS"]="${GLOBAL_CONFIG[THREADS]}"
+    declare -a TAXONOMY_LEVELS
+    
+    OPTIND=1
+    
+    while getopts ":1:2:m:r:o:t:l:" opt; do
+        case ${opt} in
+            1) PARAMS[FQ1]="${OPTARG}" ;;
+            2) PARAMS[FQ2]="${OPTARG}" ;;
+            m) PARAMS[OMICS]="${OPTARG}" ;;
+            r) PARAMS[REF]="${OPTARG}" ;;
+            o) PARAMS[OUT]="${OPTARG}" ;;
+            t) PARAMS[THREADS]="${OPTARG}" ;;
+            l) TAXONOMY_LEVELS+=("${OPTARG}") ;;
+            :) echo "Error: -${OPTARG} requires an argument" >&2; return 1 ;;
+            \?) echo "Error: Invalid option -${OPTARG}" >&2; return 1 ;;
+        esac
+    done
 
+    if ! validate_bacc_params PARAMS TAXONOMY_LEVELS; then
+        return 1
+    fi
+
+    echo -e "\033[46;37m >> Running bacc with following parameters: \033[0m"
+    echo -e "FQ1:              ${PARAMS[FQ1]}"
+    echo -e "FQ2:              ${PARAMS[FQ2]}"
+    echo -e "OMICS:            ${PARAMS[OMICS]}"
+    echo -e "REF:              ${PARAMS[REF]}"
+    echo -e "OUT:              ${PARAMS[OUT]}"
+    echo -e "THREADS:          ${PARAMS[THREADS]}"
+    echo -e "TAXONOMY_LEVELS:  ${TAXONOMY_LEVELS[*]}"
+
+    # Get sample name
+    SAMPLE=$(basename "${PARAMS[FQ1]}")
+    SAMPLE=${SAMPLE%%.R[12]*}
+    echo "Current sample: ${SAMPLE}"
+
+    # Process based on PARAMS[OMICS] type
+    case "${PARAMS[OMICS]}" in
+        "RNA")
+            echo -e "\033[46;37m >> STEP 0: Aligning for RNA sequencing... \033[0m"
+            hisat2 -x "${PARAMS[REF]}" -1 "${PARAMS[FQ1]}" -2 "${PARAMS[FQ2]}" -p "${PARAMS[THREADS]}" -S "${PARAMS[OUT]}/${SAMPLE}.sam"
+            ;;
+        "WES"|"WGS")
+            echo -e "\033[46;37m >> STEP 0: Aligning for ${PARAMS[OMICS]}... \033[0m"
+            bwa mem -t "${PARAMS[THREADS]}" -M \
+                -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" \
+                "${PARAMS[REF]}" "${PARAMS[FQ1]}" "${PARAMS[FQ2]}" > "${PARAMS[OUT]}/${SAMPLE}.sam"
+            ;;
+        *)
+            echo -e "\033[31m Wrong parameter -m, please check the help file. \033[0m"
+            exit 1
+            ;;
+    esac
+
+    echo -e "\033[46;37m >> STEP 1: Sorting... \033[0m"
+    samtools sort -o "${PARAMS[OUT]}/${SAMPLE}_sorted.bam" -@ "${PARAMS[THREADS]}" "${PARAMS[OUT]}/${SAMPLE}.sam"
+    rm "${PARAMS[OUT]}/${SAMPLE}.sam"
+    samtools index "${PARAMS[OUT]}/${SAMPLE}_sorted.bam"
+
+    echo -e "\033[46;37m >> STEP 2: Extracting unmapped reads... \033[0m"
+    samtools view -b -f 4 "${PARAMS[OUT]}/${SAMPLE}_sorted.bam" > "${PARAMS[OUT]}/${SAMPLE}_unmap.bam"
+    echo -e "Reads mapping against human reads saved at: ${PARAMS[OUT]}/${SAMPLE}_unmap.bam"
+
+    echo -e "\033[46;37m >> STEP 3: Converting unmapped bam file to fastq files... \033[0m"
+    samtools fastq -@ "${PARAMS[THREADS]}" "${PARAMS[OUT]}/${SAMPLE}_unmap.bam" \
+        -1 "${PARAMS[OUT]}/${SAMPLE}_unmap_R1.fq" \
+        -2 "${PARAMS[OUT]}/${SAMPLE}_unmap_R2.fq"
+    echo -e "Unmapped reads converting to fastq format saved at: ${PARAMS[OUT]}/${SAMPLE}_unmap_R1&2.fq"
+
+    echo -e "\033[46;37m >> STEP 4: Classifying microbe reads... \033[0m"
+    kraken2 --threads "${PARAMS[THREADS]}" \
+        --db "${GLOBAL_CONFIG[DB]}/bac_na" \
+        --paired "${PARAMS[OUT]}/${SAMPLE}_unmap_R1.fq" "${PARAMS[OUT]}/${SAMPLE}_unmap_R2.fq" \
+        --output "${PARAMS[OUT]}/${SAMPLE}.KRAKEN" \
+        --report "${PARAMS[OUT]}/${SAMPLE}.mpa" \
+        --use-mpa-style
+    echo -e "Report in mpa-style saved at: ${PARAMS[OUT]}/${SAMPLE}.mpa"
+
+    kraken2 --threads "${PARAMS[THREADS]}" \
+        --db "${GLOBAL_CONFIG[DB]}/bac_na" \
+        --paired "${PARAMS[OUT]}/${SAMPLE}_unmap_R1.fq" "${PARAMS[OUT]}/${SAMPLE}_unmap_R2.fq" \
+        --output "${PARAMS[OUT]}/${SAMPLE}.KRAKEN" \
+        --report "${PARAMS[OUT]}/${SAMPLE}.standard"
+    echo -e "Report in standard-style saved at: ${PARAMS[OUT]}/${SAMPLE}.standard"
+    
+    # Validate taxonomy levels
+    valid_levels=("d" "p" "c" "o" "f" "g" "s")
+    for TAXONOMY in "${TAXONOMY_LEVELS[@]}"; do
+        valid=false
+        for valid_level in "${valid_levels[@]}"; do
+            if [ "${TAXONOMY}" = "${valid_level}" ]; then
+                valid=true
+                break
+            fi
+        done
+        if [ "${valid}" = false ]; then
+            echo "ERROR: ${TAXONOMY} is not a valid taxonomy level!"
+            exit 1
+        fi
+        
+        echo -e "\033[46;37m >> STEP 5: Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
+        python "${GLOBAL_CONFIG[BACNEO]}/utils/bacc_extract.py" -p "${PARAMS[OUT]}" -s "${SAMPLE}" -l "${TAXONOMY}"
+        Rscript "${GLOBAL_CONFIG[BACNEO]}/utils/bacc_norm.R" "${PARAMS[OUT]}" "${TAXONOMY}"
+        echo -e "Raw counts, CPM, and abundance saved at: ${PARAMS[OUT]}/normalized_${TAXONOMY}.txt"
+    done
+    echo -e "\033[46;37m >> Finish: Processing [Module 1 - Run bacc] for sample ${SAMPLE}. \033[0m"
+}
+
+## Module 2 - Extract matrix
 extract_matrix() {
-    Rscript "${BACNEO}/utils/bacNeo_matrix.R" -d "${BACC_OUT_DIR}" -l "${TAXONOMY}" -m "${METHOD}"
+    declare -A PARAMS
+    declare -a TAXONOMY_LEVELS
+    
+    OPTIND=1
+    
+    while getopts ":d:l:n:" opt; do
+        case ${opt} in
+            d) PARAMS[BACC_OUT_DIR]="${OPTARG}" ;;
+            l) TAXONOMY_LEVELS+=("${OPTARG}") ;;
+            n) PARAMS[NORM]="${OPTARG}" ;;
+            :) echo "Error: -${OPTARG} requires an argument" >&2; return 1 ;;
+            \?) echo "Error: Invalid option -${OPTARG}" >&2; return 1 ;;
+        esac
+    done
+
+    if ! validate_matrix_params PARAMS TAXONOMY_LEVELS; then
+        return 1
+    fi
+
+    echo -e "\033[46;37m >> Running matrix-extraction with following parameters: \033[0m"
+    echo -e "BACC_OUT_DIR:     ${PARAMS[BACC_OUT_DIR]}"
+    echo -e "TAXONOMY_LEVELS:  ${TAXONOMY_LEVELS[*]}"
+    echo -e "NORM:             ${PARAMS[NORM]}"
+
+    for TAXONOMY in "${TAXONOMY_LEVELS[@]}"; do        
+        echo -e "\033[46;37m >> Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
+        Rscript "${GLOBAL_CONFIG[BACNEO]}/utils/bacNeo_matrix.R" -d "${PARAMS[BACC_OUT_DIR]}" -l "${TAXONOMY}" -n "${PARAMS[NORM]}"
+    done
+    echo -e "\033[46;37m >> Finish: Processing [Module 2 - Extract matrix] for sample ${SAMPLE}. \033[0m"
+}
+
+# Module 3 - Run bach
+run_bach() {
+    declare -A PARAMS
+    PARAMS["THREADS"]="${GLOBAL_CONFIG[THREADS]}"
+    declare -a GENES
+
+    OPTIND=1
+    
+    while getopts ":1:2:r:c:g:o:t:" opt; do
+        case "${opt}" in
+            1) PARAMS[FQ1]="${OPTARG}" ;;
+            2) PARAMS[FQ2]="${OPTARG}" ;;
+            r) PARAMS[REF]="${OPTARG}" ;;
+            c) PARAMS[BACC_PATH]="${OPTARG}" ;;
+            g) GENES+=("${OPTARG}") ;;
+            o) PARAMS[OUT]="${OPTARG}" ;;
+            t) PARAMS[THREADS]="${OPTARG}" ;;
+            :) echo -e "Error: -${OPTARG} requires an argument" >&2; return 1 ;;
+            \?) echo -e "Error: Invalid option -${OPTARG}" >&2; return 1 ;;
+        esac
+    done
+
+    if ! validate_bach_params PARAMS GENES; then
+        return 1
+    fi
+    
+    echo -e "\033[46;37m >> Running bach with following parameters: \033[0m"
+    if [[ -n "${PARAMS[BACC_PATH]}" ]]; then
+        echo -e "Using pre-processed BAM workflow"
+        echo -e "BAM directory:    ${PARAMS[BACC_PATH]}"
+    else
+        echo -e "Using alignment workflow"
+        echo -e "FQ1:              ${PARAMS[FQ1]}"
+        echo -e "FQ2:              ${PARAMS[FQ2]}"
+        echo -e "Reference:        ${PARAMS[REF]}"
+    fi
+    echo -e "HLA genes:            ${GENES[*]}"
+    echo -e "Output directory:     ${PARAMS[OUT]}"
+
+    if [ -e "${PARAMS[OUT]}/align" ]
+    then
+        echo -e "${PARAMS[OUT]}/align exist"
+    else
+        mkdir -p "${PARAMS[OUT]}/align"
+    fi
+
+    if [ -n "${PARAMS[BACC_PATH]}" ]; then
+        BAM_FILE=$(find "${PARAMS[BACC_PATH]}" -name "*_sorted.bam" -type f | head -n 1)
+        if [ -n "${BAM_FILE}" ]; then
+            SAMPLE=$(basename "${BAM_FILE}" _sorted.bam)
+            echo -e "Current sample: ${SAMPLE}"
+        else
+            echo -e "Error: No sorted bam file found in ${PARAMS[BACC_PATH]}"
+            exit 1
+        fi
+        echo -e "Using pre-processed BAM file: ${BAM_FILE}"
+    else
+        # Get sample name
+        SAMPLE=$(basename "${PARAMS[FQ1]}")
+        SAMPLE=${SAMPLE%%.R[12]*}
+        echo -e "Current sample: ${SAMPLE}"
+
+        SAM_FILE="${PARAMS[OUT]}/align/${SAMPLE}.sam"
+        BAM_FILE="${PARAMS[OUT]}/align/${SAMPLE}_sorted.bam"
+        
+        echo -e "\033[46;37m >> STEP 0: Aligning for sample ${SAMPLE}... \033[0m"
+        bwa mem -t "${PARAMS[THREADS]}" -M -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" "${PARAMS[REF]}" "${PARAMS[FQ1]}" "${PARAMS[FQ2]}" > "${SAM_FILE}"
+        samtools sort "${SAM_FILE}" -o "${BAM_FILE}" -@ "${PARAMS[THREADS]}"
+        rm "${SAM_FILE}"
+        samtools index "${BAM_FILE}"
+    fi
+
+    local TOOL="${GLOBAL_CONFIG[DB]}/hla_scan_r_v2.1.4"
+    if [ -e "${TOOL}" ]
+    then
+        echo -e "Hla-scan exists. Skipping installation..."
+        chmod 777 "${TOOL}"
+    else
+        echo -e "Installing hla-scan..."
+        wget "https://github.com/SyntekabioTools/HLAscan/releases/download/v2.1.4/hla_scan_r_v2.1.4" "${GLOBAL_CONFIG[DB]}"
+        chmod 777 "${TOOL}"
+    fi
+
+    echo -e "\033[46;37m >> STEP 1: Extracting chromesome 6... \033[0m"
+    local CHR6="${PARAMS[OUT]}/align/${SAMPLE}_chr6.bam"
+    samtools view -bh "${BAM_FILE}" 6 > "${CHR6}"
+    samtools index "${CHR6}"
+
+    echo -e "\033[46;37m >> STEP 2: Selected HLA types: ${GENES[*]} \033[0m"
+    for GENE in "${GENES[@]}"; do
+        echo -e "HLA typing of ${GENE}..."
+        "${TOOL}" -b "${BAM_FILE}" -v 38 -d "${GLOBAL_CONFIG[DB]}/HLA-ALL.IMGT" -g "${GENE}" -t "${PARAMS[THREADS]}" > "${PARAMS[OUT]}/${GENE}.txt"
+    done
+
+    echo -e "\033[46;37m >> Finish: Processing [Module 3 - Run bach] for sample ${SAMPLE}. \033[0m"
+}
+
+## Module 4 - Run bacp
+run_bacp() {
+    declare -A PARAMS
+    PARAMS["THREADS"]="${GLOBAL_CONFIG[THREADS]}"
+    declare PROTEOME_FLAG=false
+
+    OPTIND=1
+
+    while getopts ":p:i:r:a:o:t:" opt; do
+        case "${opt}" in
+            p) PROTEOME_FLAG=true ;;
+            i) PARAMS[INPUT_DIR]="${OPTARG}" ;;
+            r) PARAMS[REF_DIR]="${OPTARG}" ;;
+            a) PARAMS[ALLELE_DIR]="${OPTARG}" ;;
+            o) PARAMS[OUT]="${OPTARG}" ;;
+            t) PARAMS[THREADS]="${OPTARG}" ;;
+            :) echo -e "Error: -${OPTARG} requires an argument" >&2; return 1 ;;
+            \?) echo -e "Error: Invalid option -${OPTARG}" >&2; return 1 ;;
+        esac
+    done
+
+    if ! validate_bacp_params PARAMS; then
+        return 1
+    fi
+    
+    # Display running configuration
+    echo -e "\033[46;37m >> Running bacp with following parameters: \033[0m"
+    if [ "${PROTEOME_FLAG}" = true ]; then
+        echo -e "Workflow: Proteome analysis"
+        echo -e "MS data directory:         ${PARAMS[INPUT_DIR]}"
+        echo -e "Reference directory:       ${PARAMS[REF_DIR]}"
+    else
+        echo -e "Workflow: Predicted peptide analysis"
+        echo -e "BACC output directory:     ${PARAMS[INPUT_DIR]}"
+    fi
+    echo -e "BACH output directory:     ${PARAMS[ALLELE_DIR]}"
+    echo -e "BACP output directory:     ${PARAMS[OUT]}"
+    echo -e "Threads:                   ${PARAMS[THREADS]}"
+
+    echo -e "\033[46;37m >> STEP 0: Extracting HLA alleles... \033[0m"
+    mkdir -p "${PARAMS[OUT]}/00_allele_summary"
+
+    for SAMPLE_PATH in "${PARAMS[ALLELE_DIR]}"/*; do
+        SAMPLE=$(basename "${SAMPLE_PATH}")
+        # shellcheck disable=SC2016
+        find "${PARAMS[ALLELE_DIR]}/${SAMPLE}" -name "HLA-*.txt" -print0 | xargs awk '/HLA gene/ {split($0,a,": "); gene=a[2]} /Type [12]/ {split($3,b,":"); print gene b[1]":"b[2]}' > "${PARAMS[OUT]}/00_allele_summary/${SAMPLE}.txt"
+    done
+
+    if [ "${PROTEOME_FLAG}" = true ]; then
+        # Remove duplicates in reference fasta files
+        echo -e "\033[46;37m >> STEP 1: Preprocessing reference fasta... \033[0m"
+        cat "${PARAMS[REF_DIR]}"/*.fasta > "${PARAMS[REF_DIR]}/reference.fa"
+        OUT_CDHIT="${PARAMS[REF_DIR]}/reference_rmdup.fa"
+        cd-hit -i "${PARAMS[REF_DIR]}/reference.fa" -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > /dev/null 2>&1
+
+        mkdir -p "${PARAMS[OUT]}/tmp"
+        declare -A seen
+        for path in "${PARAMS[INPUT_DIR]}"/*.d; do
+            [ -e "${path}" ] || continue
+            SAMPLE=$(basename "${path}" .d)
+            [ "${seen[$SAMPLE]}" ] && continue
+            seen[$SAMPLE]=1
+            mkdir -p "${PARAMS[OUT]}/${SAMPLE}"
+            fileXML="${PARAMS[OUT]}/tmp/${SAMPLE}.xml"
+
+            echo -e "\033[46;37m >> STEP 2: Running maxquant to identify peptides for sample ${SAMPLE}... \033[0m"
+            echo -e "<?xml version=\"1.0\" encoding=\"utf-8\"?>
+        <MaxQuantParams xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">
+            <fastaFiles>
+                <FastaFileInfo>
+                    <fastaFilePath>${OUT_CDHIT}</fastaFilePath>
+                    <identifierParseRule>>.*\|(.*)\|</identifierParseRule>
+                    <descriptionParseRule>>(.*)</descriptionParseRule>
+                    <taxonomyParseRule></taxonomyParseRule>
+                    <variationParseRule></variationParseRule>
+                    <modificationParseRule></modificationParseRule>
+                    <taxonomyId></taxonomyId>
+                </FastaFileInfo>
+            </fastaFiles>
+            <fastaFilesProteogenomics>
+            </fastaFilesProteogenomics>
+            <fastaFilesFirstSearch>
+            </fastaFilesFirstSearch>
+            <fixedSearchFolder></fixedSearchFolder>
+            <andromedaCacheSize>350000</andromedaCacheSize>
+            <advancedRatios>True</advancedRatios>
+            <pvalThres>0.005</pvalThres>
+            <rtShift>False</rtShift>
+            <separateLfq>False</separateLfq>
+            <lfqStabilizeLargeRatios>True</lfqStabilizeLargeRatios>
+            <lfqRequireMsms>True</lfqRequireMsms>
+            <lfqBayesQuant>False</lfqBayesQuant>
+            <decoyMode>revert</decoyMode>
+            <boxCarMode>all</boxCarMode>
+            <includeContaminants>True</includeContaminants>
+            <maxPeptideMass>4600</maxPeptideMass>
+            <epsilonMutationScore>True</epsilonMutationScore>
+            <mutatedPeptidesSeparately>True</mutatedPeptidesSeparately>
+            <proteogenomicPeptidesSeparately>True</proteogenomicPeptidesSeparately>
+            <minDeltaScoreUnmodifiedPeptides>0</minDeltaScoreUnmodifiedPeptides>
+            <minDeltaScoreModifiedPeptides>6</minDeltaScoreModifiedPeptides>
+            <minScoreUnmodifiedPeptides>0</minScoreUnmodifiedPeptides>
+            <minScoreModifiedPeptides>40</minScoreModifiedPeptides>
+            <secondPeptide>True</secondPeptide>
+            <matchBetweenRuns>False</matchBetweenRuns>
+            <matchUnidentifiedFeatures>False</matchUnidentifiedFeatures>
+            <matchBetweenRunsFdr>False</matchBetweenRunsFdr>
+            <dependentPeptides>False</dependentPeptides>
+            <dependentPeptideFdr>0</dependentPeptideFdr>
+            <dependentPeptideMassBin>0</dependentPeptideMassBin>
+            <dependentPeptidesBetweenRuns>False</dependentPeptidesBetweenRuns>
+            <dependentPeptidesWithinExperiment>False</dependentPeptidesWithinExperiment>
+            <dependentPeptidesWithinParameterGroup>False</dependentPeptidesWithinParameterGroup>
+            <dependentPeptidesRestrictFractions>False</dependentPeptidesRestrictFractions>
+            <dependentPeptidesFractionDifference>0</dependentPeptidesFractionDifference>
+            <ibaq>True</ibaq>
+            <top3>False</top3>
+            <independentEnzymes>False</independentEnzymes>
+            <useDeltaScore>False</useDeltaScore>
+            <splitProteinGroupsByTaxonomy>False</splitProteinGroupsByTaxonomy>
+            <taxonomyLevel>Species</taxonomyLevel>
+            <avalon>False</avalon>
+            <nModColumns>3</nModColumns>
+            <ibaqLogFit>False</ibaqLogFit>
+            <ibaqChargeNormalization>False</ibaqChargeNormalization>
+            <razorProteinFdr>True</razorProteinFdr>
+            <deNovoSequencing>False</deNovoSequencing>
+            <deNovoVarMods>False</deNovoVarMods>
+            <deNovoCompleteSequence>False</deNovoCompleteSequence>
+            <deNovoCalibratedMasses>False</deNovoCalibratedMasses>
+            <deNovoMaxIterations>0</deNovoMaxIterations>
+            <deNovoProteaseReward>0</deNovoProteaseReward>
+            <deNovoProteaseRewardTof>0</deNovoProteaseRewardTof>
+            <deNovoAgPenalty>0</deNovoAgPenalty>
+            <deNovoGgPenalty>0</deNovoGgPenalty>
+            <deNovoUseComplementScore>True</deNovoUseComplementScore>
+            <deNovoUseProteaseScore>True</deNovoUseProteaseScore>
+            <deNovoUseWaterLossScore>True</deNovoUseWaterLossScore>
+            <deNovoUseAmmoniaLossScore>True</deNovoUseAmmoniaLossScore>
+            <deNovoUseA2Score>True</deNovoUseA2Score>
+            <massDifferenceSearch>False</massDifferenceSearch>
+            <isotopeCalc>False</isotopeCalc>
+            <writePeptidesForSpectrumFile></writePeptidesForSpectrumFile>
+            <intensityPredictionsFile>
+            </intensityPredictionsFile>
+            <minPepLen>7</minPepLen>
+            <psmFdrCrosslink>0.01</psmFdrCrosslink>
+            <peptideFdr>0.01</peptideFdr>
+            <proteinFdr>0.01</proteinFdr>
+            <siteFdr>0.01</siteFdr>
+            <minPeptideLengthForUnspecificSearch>8</minPeptideLengthForUnspecificSearch>
+            <maxPeptideLengthForUnspecificSearch>25</maxPeptideLengthForUnspecificSearch>
+            <useNormRatiosForOccupancy>True</useNormRatiosForOccupancy>
+            <minPeptides>1</minPeptides>
+            <minRazorPeptides>1</minRazorPeptides>
+            <minUniquePeptides>0</minUniquePeptides>
+            <useCounterparts>False</useCounterparts>
+            <advancedSiteIntensities>True</advancedSiteIntensities>
+            <customProteinQuantification>False</customProteinQuantification>
+            <customProteinQuantificationFile></customProteinQuantificationFile>
+            <minRatioCount>2</minRatioCount>
+            <restrictProteinQuantification>True</restrictProteinQuantification>
+            <restrictMods>
+                <string>Oxidation (M)</string>
+                <string>Acetyl (Protein N-term)</string>
+            </restrictMods>
+            <matchingTimeWindow>0</matchingTimeWindow>
+            <matchingIonMobilityWindow>0</matchingIonMobilityWindow>
+            <alignmentTimeWindow>0</alignmentTimeWindow>
+            <alignmentIonMobilityWindow>0</alignmentIonMobilityWindow>
+            <numberOfCandidatesMsms>15</numberOfCandidatesMsms>
+            <compositionPrediction>0</compositionPrediction>
+            <quantMode>1</quantMode>
+            <massDifferenceMods>
+            </massDifferenceMods>
+            <mainSearchMaxCombinations>200</mainSearchMaxCombinations>
+            <writeMsScansTable>False</writeMsScansTable>
+            <writeMsmsScansTable>True</writeMsmsScansTable>
+            <writePasefMsmsScansTable>True</writePasefMsmsScansTable>
+            <writeAccumulatedMsmsScansTable>True</writeAccumulatedMsmsScansTable>
+            <writeMs3ScansTable>True</writeMs3ScansTable>
+            <writeAllPeptidesTable>True</writeAllPeptidesTable>
+            <writeMzRangeTable>True</writeMzRangeTable>
+            <writeDiaFragmentTable>False</writeDiaFragmentTable>
+            <writeDiaFragmentQuantTable>False</writeDiaFragmentQuantTable>
+            <writeMzTab>False</writeMzTab>
+            <disableMd5>False</disableMd5>
+            <cacheBinInds>True</cacheBinInds>
+            <etdIncludeB>False</etdIncludeB>
+            <ms2PrecursorShift>0</ms2PrecursorShift>
+            <complementaryIonPpm>20</complementaryIonPpm>
+            <variationParseRule></variationParseRule>
+            <variationMode>none</variationMode>
+            <useSeriesReporters>False</useSeriesReporters>
+            <name>1</name>
+            <maxQuantVersion>2.0.3.0</maxQuantVersion>
+            <pluginFolder></pluginFolder>
+            <numThreads>${PARAMS[THREADS]}</numThreads>
+            <emailAddress></emailAddress>
+            <smtpHost></smtpHost>
+            <emailFromAddress></emailFromAddress>
+            <fixedCombinedFolder>${PARAMS[OUT]}/${SAMPLE}</fixedCombinedFolder>
+            <fullMinMz>-1.79769313486232E+308</fullMinMz>
+            <fullMaxMz>1.79769313486232E+308</fullMaxMz>
+            <sendEmail>False</sendEmail>
+            <ionCountIntensities>False</ionCountIntensities>
+            <verboseColumnHeaders>False</verboseColumnHeaders>
+            <calcPeakProperties>False</calcPeakProperties>
+            <showCentroidMassDifferences>False</showCentroidMassDifferences>
+            <showIsotopeMassDifferences>False</showIsotopeMassDifferences>
+            <useDotNetCore>True</useDotNetCore>
+            <profilePerformance>False</profilePerformance>
+            <filePaths>
+                <string>${PARAMS[INPUT_DIR]}/${SAMPLE}.d</string>
+                </filePaths>
+            <experiments>
+                <string>${SAMPLE}</string>
+            </experiments>
+            <fractions>
+                <short>32767</short>
+            </fractions>
+            <ptms>
+                <boolean>False</boolean>
+            </ptms>
+            <paramGroupIndices>
+                <int>0</int>
+            </paramGroupIndices>
+            <referenceChannel>
+                <string></string>
+            </referenceChannel>
+            <intensPred>False</intensPred>
+            <intensPredModelReTrain>False</intensPredModelReTrain>
+            <lfqTopNPeptides>0</lfqTopNPeptides>
+            <diaJoinPrecChargesForLfq>False</diaJoinPrecChargesForLfq>
+            <diaFragChargesForQuant>1</diaFragChargesForQuant>
+            <timsRearrangeSpectra>False</timsRearrangeSpectra>
+            <gridSpacing>0.5</gridSpacing>
+            <proteinGroupingFile></proteinGroupingFile>
+            <parameterGroups>
+                <parameterGroup>
+                    <msInstrument>4</msInstrument>
+                    <maxCharge>4</maxCharge>
+                    <minPeakLen>2</minPeakLen>
+                    <diaMinPeakLen>2</diaMinPeakLen>
+                    <useMs1Centroids>False</useMs1Centroids>
+                    <useMs2Centroids>False</useMs2Centroids>
+                    <cutPeaks>True</cutPeaks>
+                    <gapScans>1</gapScans>
+                    <minTime>NaN</minTime>
+                    <maxTime>NaN</maxTime>
+                    <matchType>MatchFromAndTo</matchType>
+                    <intensityDetermination>3</intensityDetermination>
+                    <centroidMatchTol>10</centroidMatchTol>
+                    <centroidMatchTolInPpm>True</centroidMatchTolInPpm>
+                    <centroidHalfWidth>35</centroidHalfWidth>
+                    <centroidHalfWidthInPpm>True</centroidHalfWidthInPpm>
+                    <valleyFactor>1.2</valleyFactor>
+                    <isotopeValleyFactor>1.2</isotopeValleyFactor>
+                    <advancedPeakSplitting>True</advancedPeakSplitting>
+                    <intensityThresholdMs1>30</intensityThresholdMs1>
+                    <intensityThresholdMs2>30</intensityThresholdMs2>
+                    <labelMods>
+                        <string></string>
+                    </labelMods>
+                    <lcmsRunType>TIMS-DDA</lcmsRunType>
+                    <reQuantify>False</reQuantify>
+                    <lfqMode>1</lfqMode>
+                    <lfqNormClusterSize>80</lfqNormClusterSize>
+                    <lfqMinEdgesPerNode>3</lfqMinEdgesPerNode>
+                    <lfqAvEdgesPerNode>6</lfqAvEdgesPerNode>
+                    <lfqMaxFeatures>100000</lfqMaxFeatures>
+                    <neucodeMaxPpm>0</neucodeMaxPpm>
+                    <neucodeResolution>0</neucodeResolution>
+                    <neucodeResolutionInMda>False</neucodeResolutionInMda>
+                    <neucodeInSilicoLowRes>False</neucodeInSilicoLowRes>
+                    <fastLfq>True</fastLfq>
+                    <lfqRestrictFeatures>False</lfqRestrictFeatures>
+                    <lfqMinRatioCount>2</lfqMinRatioCount>
+                    <maxLabeledAa>0</maxLabeledAa>
+                    <maxNmods>5</maxNmods>
+                    <maxMissedCleavages>2</maxMissedCleavages>
+                    <multiplicity>1</multiplicity>
+                    <enzymeMode>0</enzymeMode>
+                    <complementaryReporterType>0</complementaryReporterType>
+                    <reporterNormalization>0</reporterNormalization>
+                    <neucodeIntensityMode>0</neucodeIntensityMode>
+                    <fixedModifications>
+                        <string>Carbamidomethyl (C)</string>
+                    </fixedModifications>
+                    <enzymes>
+                        <string>Trypsin/P</string>
+                    </enzymes>
+                    <enzymesFirstSearch>
+                    </enzymesFirstSearch>
+                    <enzymeModeFirstSearch>0</enzymeModeFirstSearch>
+                    <useEnzymeFirstSearch>False</useEnzymeFirstSearch>
+                    <useVariableModificationsFirstSearch>False</useVariableModificationsFirstSearch>
+                    <variableModifications>
+                        <string>Oxidation (M)</string>
+                        <string>Acetyl (Protein N-term)</string>
+                    </variableModifications>
+                    <useMultiModification>False</useMultiModification>
+                    <multiModifications>
+                    </multiModifications>
+                    <isobaricLabels>
+                    </isobaricLabels>
+                    <neucodeLabels>
+                    </neucodeLabels>
+                    <variableModificationsFirstSearch>
+                    </variableModificationsFirstSearch>
+                    <hasAdditionalVariableModifications>False</hasAdditionalVariableModifications>
+                    <additionalVariableModifications>
+                    </additionalVariableModifications>
+                    <additionalVariableModificationProteins>
+                    </additionalVariableModificationProteins>
+                    <doMassFiltering>True</doMassFiltering>
+                    <firstSearchTol>20</firstSearchTol>
+                    <mainSearchTol>10</mainSearchTol>
+                    <searchTolInPpm>True</searchTolInPpm>
+                    <isotopeMatchTol>0.005</isotopeMatchTol>
+                    <isotopeMatchTolInPpm>False</isotopeMatchTolInPpm>
+                    <isotopeTimeCorrelation>0.6</isotopeTimeCorrelation>
+                    <theorIsotopeCorrelation>0.6</theorIsotopeCorrelation>
+                    <checkMassDeficit>False</checkMassDeficit>
+                    <recalibrationInPpm>True</recalibrationInPpm>
+                    <intensityDependentCalibration>True</intensityDependentCalibration>
+                    <minScoreForCalibration>40</minScoreForCalibration>
+                    <matchLibraryFile>False</matchLibraryFile>
+                    <libraryFile></libraryFile>
+                    <matchLibraryMassTolPpm>0</matchLibraryMassTolPpm>
+                    <matchLibraryTimeTolMin>0</matchLibraryTimeTolMin>
+                    <matchLabelTimeTolMin>0</matchLabelTimeTolMin>
+                    <reporterMassTolerance>NaN</reporterMassTolerance>
+                    <reporterPif>NaN</reporterPif>
+                    <filterPif>False</filterPif>
+                    <reporterFraction>NaN</reporterFraction>
+                    <reporterBasePeakRatio>NaN</reporterBasePeakRatio>
+                    <timsHalfWidth>6</timsHalfWidth>
+                    <timsStep>3</timsStep>
+                    <timsResolution>32000</timsResolution>
+                    <timsMinMsmsIntensity>1.5</timsMinMsmsIntensity>
+                    <timsRemovePrecursor>True</timsRemovePrecursor>
+                    <timsIsobaricLabels>False</timsIsobaricLabels>
+                    <timsCollapseMsms>True</timsCollapseMsms>
+                    <crossLinkingType>0</crossLinkingType>
+                    <crossLinker></crossLinker>
+                    <minMatchXl>3</minMatchXl>
+                    <minPairedPepLenXl>6</minPairedPepLenXl>
+                    <minScore_Dipeptide>40</minScore_Dipeptide>
+                    <minScore_Monopeptide>0</minScore_Monopeptide>
+                    <minScore_PartialCross>10</minScore_PartialCross>
+                    <crosslinkOnlyIntraProtein>False</crosslinkOnlyIntraProtein>
+                    <crosslinkIntensityBasedPrecursor>True</crosslinkIntensityBasedPrecursor>
+                    <isHybridPrecDetermination>False</isHybridPrecDetermination>
+                    <topXcross>3</topXcross>
+                    <doesSeparateInterIntraProteinCross>False</doesSeparateInterIntraProteinCross>
+                    <crosslinkMaxMonoUnsaturated>0</crosslinkMaxMonoUnsaturated>
+                    <crosslinkMaxMonoSaturated>0</crosslinkMaxMonoSaturated>
+                    <crosslinkMaxDiUnsaturated>0</crosslinkMaxDiUnsaturated>
+                    <crosslinkMaxDiSaturated>0</crosslinkMaxDiSaturated>
+                    <crosslinkModifications>
+                    </crosslinkModifications>
+                    <crosslinkFastaFiles>
+                    </crosslinkFastaFiles>
+                    <crosslinkSites>
+                    </crosslinkSites>
+                    <crosslinkNetworkFiles>
+                    </crosslinkNetworkFiles>
+                    <crosslinkMode></crosslinkMode>
+                    <peakRefinement>False</peakRefinement>
+                    <isobaricSumOverWindow>True</isobaricSumOverWindow>
+                    <isobaricWeightExponent>0.75</isobaricWeightExponent>
+                    <collapseMsmsOnIsotopePatterns>False</collapseMsmsOnIsotopePatterns>
+                    <diaLibraryType>0</diaLibraryType>
+                    <diaLibraryPaths>
+                    </diaLibraryPaths>
+                    <diaPeptidePaths>
+                    </diaPeptidePaths>
+                    <diaEvidencePaths>
+                    </diaEvidencePaths>
+                    <diaMsmsPaths>
+                    </diaMsmsPaths>
+                    <diaInitialPrecMassTolPpm>20</diaInitialPrecMassTolPpm>
+                    <diaInitialFragMassTolPpm>20</diaInitialFragMassTolPpm>
+                    <diaCorrThresholdFeatureClustering>0.85</diaCorrThresholdFeatureClustering>
+                    <diaPrecTolPpmFeatureClustering>2</diaPrecTolPpmFeatureClustering>
+                    <diaFragTolPpmFeatureClustering>2</diaFragTolPpmFeatureClustering>
+                    <diaScoreN>7</diaScoreN>
+                    <diaMinScore>1.99</diaMinScore>
+                    <diaXgBoostBaseScore>0.4</diaXgBoostBaseScore>
+                    <diaXgBoostSubSample>0.9</diaXgBoostSubSample>
+                    <centroidPosition>0</centroidPosition>
+                    <diaQuantMethod>7</diaQuantMethod>
+                    <diaFeatureQuantMethod>2</diaFeatureQuantMethod>
+                    <lfqNormType>1</lfqNormType>
+                    <diaTopNForQuant>10</diaTopNForQuant>
+                    <diaMinMsmsIntensityForQuant>0</diaMinMsmsIntensityForQuant>
+                    <diaTopMsmsIntensityQuantileForQuant>0.85</diaTopMsmsIntensityQuantileForQuant>
+                    <diaPrecursorFilterType>0</diaPrecursorFilterType>
+                    <diaMinFragmentOverlapScore>1</diaMinFragmentOverlapScore>
+                    <diaMinPrecursorScore>0.5</diaMinPrecursorScore>
+                    <diaMinProfileCorrelation>0</diaMinProfileCorrelation>
+                    <diaXgBoostMinChildWeight>9</diaXgBoostMinChildWeight>
+                    <diaXgBoostMaximumTreeDepth>12</diaXgBoostMaximumTreeDepth>
+                    <diaXgBoostEstimators>580</diaXgBoostEstimators>
+                    <diaXgBoostGamma>0.9</diaXgBoostGamma>
+                    <diaXgBoostMaxDeltaStep>3</diaXgBoostMaxDeltaStep>
+                    <diaGlobalMl>True</diaGlobalMl>
+                    <diaAdaptiveMassAccuracy>False</diaAdaptiveMassAccuracy>
+                    <diaMassWindowFactor>3.3</diaMassWindowFactor>
+                    <diaRtPrediction>False</diaRtPrediction>
+                    <diaRtPredictionSecondRound>False</diaRtPredictionSecondRound>
+                    <diaNoMl>False</diaNoMl>
+                    <diaPermuteRt>False</diaPermuteRt>
+                    <diaPermuteCcs>False</diaPermuteCcs>
+                    <diaBackgroundSubtraction>False</diaBackgroundSubtraction>
+                    <diaBackgroundSubtractionQuantile>0.5</diaBackgroundSubtractionQuantile>
+                    <diaBackgroundSubtractionFactor>4</diaBackgroundSubtractionFactor>
+                    <diaLfqWeightedMedian>True</diaLfqWeightedMedian>
+                    <diaTransferQvalue>0.3</diaTransferQvalue>
+                    <diaOnlyIsosForRecal>True</diaOnlyIsosForRecal>
+                    <diaMinPeaksForRecal>5</diaMinPeaksForRecal>
+                    <diaUseFragIntensForMl>False</diaUseFragIntensForMl>
+                    <diaUseFragMassesForMl>False</diaUseFragMassesForMl>
+                    <diaMaxTrainInstances>1000000</diaMaxTrainInstances>
+                </parameterGroup>
+            </parameterGroups>
+            <msmsParamsArray>
+                <msmsParams>
+                    <Name>FTMS</Name>
+                    <MatchTolerance>20</MatchTolerance>
+                    <MatchToleranceInPpm>True</MatchToleranceInPpm>
+                    <DeisotopeTolerance>7</DeisotopeTolerance>
+                    <DeisotopeToleranceInPpm>True</DeisotopeToleranceInPpm>
+                    <DeNovoTolerance>25</DeNovoTolerance>
+                    <DeNovoToleranceInPpm>True</DeNovoToleranceInPpm>
+                    <Deisotope>True</Deisotope>
+                    <Topx>12</Topx>
+                    <TopxInterval>100</TopxInterval>
+                    <HigherCharges>True</HigherCharges>
+                    <IncludeWater>True</IncludeWater>
+                    <IncludeAmmonia>True</IncludeAmmonia>
+                    <DependentLosses>True</DependentLosses>
+                    <Recalibration>False</Recalibration>
+                </msmsParams>
+                <msmsParams>
+                    <Name>ITMS</Name>
+                    <MatchTolerance>0.5</MatchTolerance>
+                    <MatchToleranceInPpm>False</MatchToleranceInPpm>
+                    <DeisotopeTolerance>0.15</DeisotopeTolerance>
+                    <DeisotopeToleranceInPpm>False</DeisotopeToleranceInPpm>
+                    <DeNovoTolerance>0.5</DeNovoTolerance>
+                    <DeNovoToleranceInPpm>False</DeNovoToleranceInPpm>
+                    <Deisotope>False</Deisotope>
+                    <Topx>8</Topx>
+                    <TopxInterval>100</TopxInterval>
+                    <HigherCharges>True</HigherCharges>
+                    <IncludeWater>True</IncludeWater>
+                    <IncludeAmmonia>True</IncludeAmmonia>
+                    <DependentLosses>True</DependentLosses>
+                    <Recalibration>False</Recalibration>
+                </msmsParams>
+                <msmsParams>
+                    <Name>TOF</Name>
+                    <MatchTolerance>40</MatchTolerance>
+                    <MatchToleranceInPpm>True</MatchToleranceInPpm>
+                    <DeisotopeTolerance>0.01</DeisotopeTolerance>
+                    <DeisotopeToleranceInPpm>False</DeisotopeToleranceInPpm>
+                    <DeNovoTolerance>25</DeNovoTolerance>
+                    <DeNovoToleranceInPpm>True</DeNovoToleranceInPpm>
+                    <Deisotope>True</Deisotope>
+                    <Topx>10</Topx>
+                    <TopxInterval>100</TopxInterval>
+                    <HigherCharges>True</HigherCharges>
+                    <IncludeWater>True</IncludeWater>
+                    <IncludeAmmonia>True</IncludeAmmonia>
+                    <DependentLosses>True</DependentLosses>
+                    <Recalibration>False</Recalibration>
+                </msmsParams>
+                <msmsParams>
+                    <Name>Unknown</Name>
+                    <MatchTolerance>20</MatchTolerance>
+                    <MatchToleranceInPpm>True</MatchToleranceInPpm>
+                    <DeisotopeTolerance>7</DeisotopeTolerance>
+                    <DeisotopeToleranceInPpm>True</DeisotopeToleranceInPpm>
+                    <DeNovoTolerance>25</DeNovoTolerance>
+                    <DeNovoToleranceInPpm>True</DeNovoToleranceInPpm>
+                    <Deisotope>True</Deisotope>
+                    <Topx>12</Topx>
+                    <TopxInterval>100</TopxInterval>
+                    <HigherCharges>True</HigherCharges>
+                    <IncludeWater>True</IncludeWater>
+                    <IncludeAmmonia>True</IncludeAmmonia>
+                    <DependentLosses>True</DependentLosses>
+                    <Recalibration>False</Recalibration>
+                </msmsParams>
+            </msmsParamsArray>
+            <fragmentationParamsArray>
+                <fragmentationParams>
+                    <Name>CID</Name>
+                    <Connected>False</Connected>
+                    <ConnectedScore0>1</ConnectedScore0>
+                    <ConnectedScore1>1</ConnectedScore1>
+                    <ConnectedScore2>1</ConnectedScore2>
+                    <InternalFragments>False</InternalFragments>
+                    <InternalFragmentWeight>1</InternalFragmentWeight>
+                    <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
+                </fragmentationParams>
+                <fragmentationParams>
+                    <Name>HCD</Name>
+                    <Connected>False</Connected>
+                    <ConnectedScore0>1</ConnectedScore0>
+                    <ConnectedScore1>1</ConnectedScore1>
+                    <ConnectedScore2>1</ConnectedScore2>
+                    <InternalFragments>False</InternalFragments>
+                    <InternalFragmentWeight>1</InternalFragmentWeight>
+                    <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
+                </fragmentationParams>
+                <fragmentationParams>
+                    <Name>ETD</Name>
+                    <Connected>False</Connected>
+                    <ConnectedScore0>1</ConnectedScore0>
+                    <ConnectedScore1>1</ConnectedScore1>
+                    <ConnectedScore2>1</ConnectedScore2>
+                    <InternalFragments>False</InternalFragments>
+                    <InternalFragmentWeight>1</InternalFragmentWeight>
+                    <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
+                </fragmentationParams>
+                <fragmentationParams>
+                    <Name>PQD</Name>
+                    <Connected>False</Connected>
+                    <ConnectedScore0>1</ConnectedScore0>
+                    <ConnectedScore1>1</ConnectedScore1>
+                    <ConnectedScore2>1</ConnectedScore2>
+                    <InternalFragments>False</InternalFragments>
+                    <InternalFragmentWeight>1</InternalFragmentWeight>
+                    <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
+                </fragmentationParams>
+                <fragmentationParams>
+                    <Name>ETHCD</Name>
+                    <Connected>False</Connected>
+                    <ConnectedScore0>1</ConnectedScore0>
+                    <ConnectedScore1>1</ConnectedScore1>
+                    <ConnectedScore2>1</ConnectedScore2>
+                    <InternalFragments>False</InternalFragments>
+                    <InternalFragmentWeight>1</InternalFragmentWeight>
+                    <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
+                </fragmentationParams>
+                <fragmentationParams>
+                    <Name>ETCID</Name>
+                    <Connected>False</Connected>
+                    <ConnectedScore0>1</ConnectedScore0>
+                    <ConnectedScore1>1</ConnectedScore1>
+                    <ConnectedScore2>1</ConnectedScore2>
+                    <InternalFragments>False</InternalFragments>
+                    <InternalFragmentWeight>1</InternalFragmentWeight>
+                    <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
+                </fragmentationParams>
+                <fragmentationParams>
+                    <Name>UVPD</Name>
+                    <Connected>False</Connected>
+                    <ConnectedScore0>1</ConnectedScore0>
+                    <ConnectedScore1>1</ConnectedScore1>
+                    <ConnectedScore2>1</ConnectedScore2>
+                    <InternalFragments>False</InternalFragments>
+                    <InternalFragmentWeight>1</InternalFragmentWeight>
+                    <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
+                </fragmentationParams>
+                <fragmentationParams>
+                    <Name>Unknown</Name>
+                    <Connected>False</Connected>
+                    <ConnectedScore0>1</ConnectedScore0>
+                    <ConnectedScore1>1</ConnectedScore1>
+                    <ConnectedScore2>1</ConnectedScore2>
+                    <InternalFragments>False</InternalFragments>
+                    <InternalFragmentWeight>1</InternalFragmentWeight>
+                    <InternalFragment03_amino_acid_processing>KRH</InternalFragment03_amino_acid_processing>
+                </fragmentationParams>
+            </fragmentationParamsArray>
+        </MaxQuantParams>" > "${fileXML}"
+            maxquant "${fileXML}"
+            rm "${fileXML}"
+        done
+        rm -rf "${PARAMS[OUT]}/tmp"
+
+        echo -e "\033[46;37m >> STEP 3: Extracting peptide sequences... \033[0m"
+        Rscript "${GLOBAL_CONFIG[BACNEO]}/utils/bacp_pep_count.R" "${PARAMS[OUT]}"
+        sed -i "s/\\\"//g" "${PARAMS[OUT]}/sequences.txt"
+
+        echo -e "\033[46;37m >> STEP 4: Predicting HLA-peptide affinities... \033[0m"
+        for SAMPLE_PATH in "${PARAMS[ALLELE_DIR]}"/*; do
+            SAMPLE=$(basename "${SAMPLE_PATH}")
+            process_peptides "${SAMPLE}" "${PARAMS[OUT]}/sequences.txt" "${PARAMS[OUT]}" "${PARAMS[THREADS]}"
+        done
+
+    elif [ "${PROTEOME_FLAG}" = false ]; then
+        echo -e "\033[46;37m >> STEP 1: Converting taxonomy reads into fasta files... \033[0m"  
+        mkdir -p "${PARAMS[OUT]}/01_na_fastas"
+        
+        for SAMPLE_PATH in "${PARAMS[ALLELE_DIR]}"/*; do
+            SAMPLE=$(basename "${SAMPLE_PATH}")
+            echo -e "====================================================================="
+            echo -e "Processing sample: ${SAMPLE}..."
+            python "${GLOBAL_CONFIG[BACNEO]}/utils/bacp_taxon2fasta.py" \
+                -k "${PARAMS[INPUT_DIR]}/${SAMPLE}/${SAMPLE}.KRAKEN" \
+                -s1 "${PARAMS[INPUT_DIR]}/${SAMPLE}/${SAMPLE}_unmap_R1.fq" \
+                -s2 "${PARAMS[INPUT_DIR]}/${SAMPLE}/${SAMPLE}_unmap_R2.fq" \
+                -o "${PARAMS[OUT]}/01_na_fastas/${SAMPLE}_bacreads.fasta"
+        done
+
+        echo -e "\033[46;37m >> STEP 2: Removing potential contaminants and predicting bacterial peptides... \033[0m"
+        mkdir -p "${PARAMS[OUT]}/02_predicted_protein/"
+        
+        for SAMPLE_PATH in "${PARAMS[ALLELE_DIR]}"/*; do
+            SAMPLE=$(basename "${SAMPLE_PATH}")
+            echo -e "====================================================================="
+            echo -e "Processing sample: ${SAMPLE}..."
+            mkdir -p "${PARAMS[OUT]}/02_predicted_protein/${SAMPLE}"
+            checkm2 predict --threads "${PARAMS[THREADS]}" \
+                --input "${PARAMS[OUT]}/01_na_fastas/${SAMPLE}_bacreads.fasta" \
+                --output-directory "${PARAMS[OUT]}/02_predicted_protein/${SAMPLE}" \
+                --database_path "${GLOBAL_CONFIG[DB]}/CheckM2_database/uniref100.KO.1.dmnd" > /dev/null 2>&1
+        done
+
+        echo -e "\033[46;37m >> STEP 3: Identifying potential neoantigens... \033[0m"
+        mkdir -p "${PARAMS[OUT]}/03_amino_acid_processing" "${PARAMS[OUT]}/04_affinity_with_HLAs"
+        
+        for SAMPLE_PATH in "${PARAMS[ALLELE_DIR]}"/*; do
+            SAMPLE=$(basename "${SAMPLE_PATH}")
+            echo -e "====================================================================="
+            echo -e "Processing sample ${SAMPLE}: Removing duplicates in fasta files of bacterial peptides..."
+            
+            OUT_CDHIT="${PARAMS[OUT]}/03_amino_acid_processing/${SAMPLE}_bacpep_cdhit.fa"         
+            cd-hit -i "${PARAMS[OUT]}/02_predicted_protein/${SAMPLE}/protein_files/${SAMPLE}_bacreads.faa" \
+                -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > /dev/null 2>&1
+            echo -e "Processing sample ${SAMPLE}: Removing bacterial peptide sequences without start codon and ribosome binding sites..."
+            INPUT_PEP="${PARAMS[OUT]}/03_amino_acid_processing/${SAMPLE}_bacpep.txt"
+            awk '/^>/ {header=$0; getline seq; if (header !~ /rbs_motif=None/ && header !~ /start_type=Edge/) print seq}' \
+                "${OUT_CDHIT}" > "${INPUT_PEP}"
+            echo -e "Processing sample ${SAMPLE}: Predicting potential neoantigens..."
+            process_peptides "${SAMPLE}" "${INPUT_PEP}" "${PARAMS[OUT]}" "${PARAMS[THREADS]}"
+        done
+    else
+        echo -e "Wrong parameter -p!"
+    fi
+
+    echo -e "\033[46;37m >> FINAL STEP: Extracting sample-specific strong and weak binders... \033[0m"
+    Rscript "${GLOBAL_CONFIG[BACNEO]}/utils/bacp_binder_summary_with_TAP_efficiency.R" "${PARAMS[OUT]}"
+    echo -e "\033[46;37m >> Finish: Processing [Module 4 - Run bacp] \033[0m"
 }
 
 main() {
-    # If there is no parameter, return help
     if [ $# -eq 0 ]; then
         usage
         exit 1
     fi
 
-    # Flag to track which mode is being used
-    local download_mode=false
-    local extract_mode=false
-
-    while [ $# -gt 0 ]; do
-        case "$1" in
-            --download-db)
-                if "${extract_mode}"; then
-                    echo "ERROR: Cannot use --download-db with --extract-matrix"
-                    exit_abnormal
-                fi
-                download_mode=true
-                shift
-                ;;
-            -t)
-                if [ -z "$2" ]; then
-                    echo "ERROR: -t requires a thread number"
-                    exit_abnormal
-                fi
-                THREADS="$2"
-                shift 2
-                ;;
-            --extract-matrix)
-                if "${download_mode}"; then
-                    echo "ERROR: Cannot use --extract-matrix with --download-db"
-                    exit_abnormal
-                fi
-                extract_mode=true
-                shift
-                ;;
-            -d|--dir)
-                if [ -z "$2" ]; then
-                    echo "ERROR: -d/--dir requires a directory path"
-                    exit_abnormal
-                fi
-                BACC_OUT_DIR="$2"
-                shift 2
-                ;;
-            -l|--level)
-                if [ -z "$2" ]; then
-                    echo "ERROR: -l/--level requires a taxonomic level"
-                    exit_abnormal
-                fi
-                TAXONOMY="$2"
-                shift 2
-                ;;
-            -m|--method)
-                if [ -z "$2" ]; then
-                    echo "ERROR: -m/--method requires a method name"
-                    exit_abnormal
-                fi
-                METHOD="$2"
-                shift 2
-                ;;
-            -h|--help)
-                usage
-                exit 0
-                ;;
-            *)
-                echo "ERROR: Unknown parameter $1"
-                exit_abnormal
-                ;;
-        esac
-    done
-
-    if "${download_mode}"; then
-        download_database
-    elif "${extract_mode}"; then
-        if [ -z "${BACC_OUT_DIR}" ] || [ -z "${TAXONOMY}" ] || [ -z "${METHOD}" ]; then
-            echo "ERROR: --extract-matrix requires -d/--dir, -l/--level, and -m/--method parameters"
+    init_global_config
+    
+    case "$1" in
+        --download-db)
+            shift
+            download_database "$@"
+            ;;
+        --bacc)
+            shift
+            run_bacc "$@"
+            ;;
+        --extract-matrix)
+            shift
+            extract_matrix "$@"
+            ;;
+        --bach)
+            shift
+            run_bach "$@"
+            ;;
+        --bacp)
+            shift
+            run_bacp "$@"
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "ERROR: Unknown parameter $1" >&2
             exit_abnormal
-        fi
-        extract_matrix
-    fi
+            ;;
+    esac
 }
 
 main "$@"
