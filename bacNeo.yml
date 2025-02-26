@@ -13,6 +13,7 @@ dependencies:
   - r-ggalluvial
   - r-argparse
   - r-dplyr
+  - r-reshape2
   - python
   - scikit-learn
   - zlib
