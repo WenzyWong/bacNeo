@@ -8,6 +8,7 @@ dependencies:
   - ucsc-fatrans
   - R >= 4.2.3
   - r-patchwork
+  - r-remotes
   - r-ggplot2
   - r-ggalluvial
   - r-argparse
