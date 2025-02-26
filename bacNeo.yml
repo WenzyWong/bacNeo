@@ -6,22 +6,26 @@ dependencies:
   - tcsh
   - cd-hit
   - ucsc-fatrans
-  - R >= 4.2.3
+  - R
   - r-patchwork
   - r-remotes
   - r-ggplot2
   - r-ggalluvial
   - r-argparse
   - r-dplyr
-  - python >= 3.7, < 3.9
-  - scikit-learn = 0.23.2
-  - h5py = 2.10.0
-  - numpy = 1.19.2
-  - diamond = 2.0.4
-  - tensorflow >= 2.2.0, < 2.6.0
-  - lightgbm = 3.2.1
-  - pandas = 1.4.0
-  - scipy = 1.8.0
+  - python
+  - scikit-learn
+  - zlib
+  - hdf5
+  - h5py
+  - numpy
+  - libzlib
+  - zlib
+  - diamond
+  - tensorflow
+  - lightgbm
+  - pandas
+  - scipy
   - bioconductor-edger
   - blast
   - kraken2
