@@ -495,7 +495,8 @@ run_bacc() {
 
     # Get sample name
     SAMPLE=$(basename "${PARAMS[FQ1]}")
-    SAMPLE=${SAMPLE%%.R[12]*}
+    SAMPLE=${SAMPLE%%[._][R]*[12]*}
+    SAMPLE=${SAMPLE%%[._][12]*}
     echo "Current sample: ${SAMPLE}"
 
     # Process based on PARAMS[OMICS] type
@@ -662,8 +663,9 @@ run_bach() {
     else
         # Get sample name
         SAMPLE=$(basename "${PARAMS[FQ1]}")
-        SAMPLE=${SAMPLE%%.R[12]*}
-        echo -e "Current sample: ${SAMPLE}"
+        SAMPLE=${SAMPLE%%[._][R]*[12]*}
+        SAMPLE=${SAMPLE%%[._][12]*}
+        echo "Current sample: ${SAMPLE}"
 
         SAM_FILE="${PARAMS[OUT]}/align/${SAMPLE}.sam"
         BAM_FILE="${PARAMS[OUT]}/align/${SAMPLE}_sorted.bam"
