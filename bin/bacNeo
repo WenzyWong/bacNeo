@@ -749,6 +749,8 @@ run_bacp() {
         # shellcheck disable=SC2016
         find "${PARAMS[ALLELE_DIR]}/${SAMPLE}" -name "HLA-*.txt" -print0 | xargs awk '/HLA gene/ {split($0,a,": "); gene=a[2]} /Type [12]/ {split($3,b,":"); print gene b[1]":"b[2]}' > "${PARAMS[OUT]}/00_allele_summary/${SAMPLE}.txt"
     done
+    echo -e "Plotting the distribution of HLA alleles among samples into ${PARAMS[OUT]}/00_allele_summary/Bar_distribution_alleles.pdf"
+    Rscript "${GLOBAL_CONFIG[BACNEO]}/utils/bacp_allele_visualization.R" "${PARAMS[OUT]}/00_allele_summary"
 
     if [ "${PROTEOME_FLAG}" = true ]; then
         # Remove duplicates in reference fasta files
