@@ -294,7 +294,27 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
     Note: Make sure that you have already run 'bacNeo --bacc' to extract bacterial reads in all samples
     ```
 
-    After successfully running the command, a `.txt` file would appear in the same directory path of your input path. For example, if you calculate the abundance matrix for species level, a file named `matrix_abundance_s.txt` would appear.
+    After successfully running the command, the outputs directory of `bacNeo --bacc` would looks like (assuming that you have already followed the aforementioned steps in `bacNeo --bacc` successfully):
+
+    ```
+    bacc/
+    ├── matrix_abundance_g.txt
+    ├── matrix_abundance_s.txt
+    ├── Plot_abundance_g.pdf
+    ├── Plot_abundance_s.pdf
+    └── SAMPLE
+           ├── counts_g.txt
+           ├── counts_s.txt
+        ├── normalized_g.txt
+        └── normalized_s.txt
+           ├── SAMPLE.bai
+           ├── SAMPLE.mpa
+           ├── SAMPLE.KRAKEN
+           ├── SAMPLE_sorted.bam
+           ├── SAMPLE_unmap.bam
+           ├── SAMPLE_unmap_R1.fq
+           └── SAMPLE_unmap_R2.fq
+    ```
 
 - `--bach` can predict HLA alleles for each patient sample from genome datasets. If you use the sampe genome data to run `bacNeo --bacc` previously, you could skip the alignment process to save time. 
 
@@ -367,6 +387,7 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
     ```
     bacp/
     ├── 00_allele_summary
+        ├── Bar_distribution_alleles.pdf
     │   ├── SAMPLE1.txt
     │   ├── SAMPLE2.txt
     │   └── SAMPLE3.txt
