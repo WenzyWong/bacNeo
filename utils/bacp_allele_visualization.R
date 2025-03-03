@@ -48,6 +48,6 @@ p <-
   theme(axis.text = element_text(colour = 1),
         axis.text.x = element_text(angle = 90, vjust = .5))
 
-pdf(file.path(DIR, "Bar_distribution_alleles.pdf", width = 5, height = 5))
+pdf(file.path(DIR, "Bar_distribution_alleles.pdf"), width = 5, height = 5)
 print(p)
 dev.off()
