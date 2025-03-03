@@ -386,7 +386,7 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
 
     ```
     bacp/
-    ├── 00_allele_summary
+    └── 00_allele_summary
         ├── Bar_distribution_alleles.pdf
     │   ├── SAMPLE1.txt
     │   ├── SAMPLE2.txt
