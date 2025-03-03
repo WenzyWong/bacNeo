@@ -1,5 +1,12 @@
-setwd("/data/yzwang/tests/visualization_250226/")
-DIR <- "../neo_merge_250119/Res/bacp/00_allele_summary/"
+#################################################################################
+# Rscript for visualizing allele distribution among samples
+
+# Yunzhe WANG, yunzhewang24@m.fudan.edu.cn
+# Updated: 2025-03-03
+#################################################################################
+args = commandArgs(trailingOnly=TRUE)
+
+DIR <- args[1]
 FILE <- list.files(DIR)
 
 if (!requireNamespace("dplyr", quietly = TRUE)) {
@@ -14,6 +21,7 @@ if (!requireNamespace("forcats", quietly = TRUE)) {
 
 library(dplyr)
 library(ggplot2)
+library(forcats)
 
 allele_dt <- data.frame()
 for (i in 1:length(FILE)){
@@ -29,13 +37,17 @@ draw_allele <- allele_dt %>%
 
 draw_line <- 0.2 * nrow(draw_allele)
 
-ggplot(draw_allele, aes(x = forcats::fct_infreq(allele))) + 
+p <-
+  ggplot(draw_allele, aes(x = fct_infreq(allele))) + 
   geom_bar(fill = "grey") +
   xlab("HLA alleles") + 
   ylab("Count") + 
   geom_hline(yintercept = draw_line, colour = "red3") + 
-  annotate("text", x = .6, y = draw_line, label = "20%", colour = "red3")
+  annotate("text", x = .6, y = draw_line, label = "20%", colour = "red3") +
   theme_bw() +
   theme(axis.text = element_text(colour = 1),
         axis.text.x = element_text(angle = 90, vjust = .5))
 
+pdf(file.path(DIR, "Bar_distribution_alleles.pdf", width = 5, height = 5))
+print(p)
+dev.off()
