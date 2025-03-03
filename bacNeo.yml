@@ -14,6 +14,7 @@ dependencies:
   - r-argparse
   - r-dplyr
   - r-reshape2
+  - r-forcats
   - python
   - scikit-learn
   - zlib
