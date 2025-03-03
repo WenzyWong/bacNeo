@@ -301,10 +301,10 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
     ├── matrix_abundance_g.txt
     ├── matrix_abundance_s.txt
     ├── Plot_abundance_g.pdf
-    ├── Plot_abundance_s.pdf
+    ├── Plot_abundance_s.pdf
     └── SAMPLE
-           ├── counts_g.txt
-           ├── counts_s.txt
+        │  ├── counts_g.txt
+        │  ├── counts_s.txt
         ├── normalized_g.txt
         └── normalized_s.txt
            ├── SAMPLE.bai
