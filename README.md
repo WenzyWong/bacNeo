@@ -59,7 +59,7 @@ Reference directory: ${THE_PATH_YOU_CLONED_THIS_REPO}/reference
 
     Thank you for downloading bacNeo!
 
-    The tool is developped for predicting bacteria-derived neoantigens
+    The tool is developed for predicting bacteria-derived neoantigens
 
     bacNeo contains five modules, please check the usage down below
 
