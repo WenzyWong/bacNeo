@@ -266,8 +266,8 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
     ```
     bacc/
     └── SAMPLE
-           ├── counts_g.txt
-           ├── counts_s.txt
+        │  ├── counts_g.txt
+        │  ├── counts_s.txt
         ├── normalized_g.txt
         └── normalized_s.txt
            ├── SAMPLE.bai
