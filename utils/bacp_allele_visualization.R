@@ -24,11 +24,18 @@ library(ggplot2)
 library(forcats)
 
 allele_dt <- data.frame()
+count <- 0
 for (i in 1:length(FILE)){
   tmp_path <- file.path(DIR, FILE[i])
-  tmp_dt <- read.table(tmp_path)
+  if (!file.exists(tmp_path)) {
+    message("Skipping non-existent file: ", tpm_path)
+    next
+  }
+  tmp_dt <- tryCatch(read.table(tmp_path), error = function(e) NULL)
+  if (is.null(tmp_dt)) next
+  count <- count + 1
   allele_dt <- rbind(allele_dt, tmp_dt)
-  rownames(allele_dt)[(2 * i - 1):(2 * i)] <- paste0(gsub(".txt", "", FILE[i]), "_", 1:2)
+  rownames(allele_dt)[(2 * count - 1):(2 * count)] <- paste0(gsub(".txt", "", FILE[i]), "_", 1:2)
 }
 
 draw_allele <- allele_dt %>%
@@ -43,11 +50,11 @@ p <-
   xlab("HLA alleles") + 
   ylab("Count") + 
   geom_hline(yintercept = draw_line, colour = "red3") + 
-  annotate("text", x = .6, y = draw_line, label = "20%", colour = "red3") +
+  annotate("text", x = 1, y = draw_line, label = "20%", colour = "red3") +
   theme_bw() +
   theme(axis.text = element_text(colour = 1),
         axis.text.x = element_text(angle = 90, vjust = .5))
 
-pdf(file.path(DIR, "Bar_distribution_alleles.pdf"), width = 5, height = 5)
+pdf(file.path(DIR, "Bar_distribution_alleles.pdf"), width = 6, height = 5)
 print(p)
 dev.off()
