@@ -3,6 +3,7 @@ channels:
   - bioconda
   - defaults
 dependencies:
+  - bash
   - tcsh
   - cd-hit
   - ucsc-fatrans
