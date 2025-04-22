@@ -601,6 +601,12 @@ extract_matrix() {
         echo -e "\033[46;37m >> Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
         Rscript "${GLOBAL_CONFIG[BACNEO]}/utils/bacNeo_matrix.R" -d "${PARAMS[BACC_OUT_DIR]}" -l "${TAXONOMY}" -n "${PARAMS[NORM]}"
     done
+
+    echo -e "\033[46;37m >> Creating phylogenetic tree across samples... \033[0m"
+    TARGET_DIR="${PARAMS[BACC_OUT_DIR]}/standard_reports"
+    mkdir -p "${TARGET_DIR}"
+    find "${PARAMS[BACC_OUT_DIR]}" -type f -name "*.standard" -not -path "${TARGET_DIR}/*" -exec mv {} "${TARGET_DIR}" \;
+    python ${GLOBAL_CONFIG[BACNEO]}/utils/create_trees.py -i "${TARGET_DIR}" -o "${PARAMS[BACC_OUT_DIR]}/out_tree"
     echo -e "\033[46;37m >> Finish: Processing [Module 2 - Extract matrix] for sample ${SAMPLE}. \033[0m"
 }
 
