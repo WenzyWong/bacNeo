@@ -7,6 +7,7 @@ dependencies:
   - tcsh
   - cd-hit
   - ucsc-fatrans
+  - ete3
   - R
   - r-patchwork
   - r-remotes
