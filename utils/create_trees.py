@@ -266,6 +266,19 @@ def main():
     species_abundance = otu_table.groupby("species")["abundance"].sum().to_dict()
     # Top species
     abundance_df = pd.DataFrame.from_dict(species_abundance, orient="index", columns=["abundance"])
+
+    # Top 500 for better display
+    top_500_species = abundance_df.sort_values(by="abundance", ascending=False).head(500).index.tolist()
+    otu_table_500 = otu_table[otu_table["species"].isin(top_500_species)]
+    top_500_taxids = otu_table_500["taxid"].unique().tolist()
+    # Build tree using TaxIDs of top 500 species
+    tree_500 = ncbi.get_topology(top_500_taxids)
+    for leaf in tree_500.get_leaves():
+        leaf.name = translator.get(int(leaf.name), leaf.name)
+    tree_500.write(outfile=f"{args.out_prefix}_500.tree", format = 1, quoted_node_names = False)
+    save_tree(tree_500, f"{args.out_prefix}_tree_500.nwk")
+
+    # Top 30 or top-user-identified-number
     top_30_species = abundance_df.sort_values(by="abundance", ascending=False).head(int(args.top_number)).index.tolist()
     otu_table_30 = otu_table[otu_table["species"].isin(top_30_species)]
     top_30_taxids = otu_table_30["taxid"].unique().tolist()
