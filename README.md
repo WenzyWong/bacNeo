@@ -174,63 +174,32 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
     After successfully running the command, the folder would look like:
 
     ```
-    ├── bac_na
-    │   ├── hash.k2d
-    │   ├── library
-    │   │   ├── archaea
-    │   │   │   ├── assembly_summary.txt
-    │   │   │   ├── library.fna
-    │   │   │   ├── library.fna.masked
-    │   │   │   ├── manifest.txt
-    │   │   │   └── prelim_map.txt
-    │   │   ├── bacteria
-    │   │   │   ├── assembly_summary.txt
-    │   │   │   ├── library.fna
-    │   │   │   ├── library.fna.masked
-    │   │   │   ├── manifest.txt
-    │   │   │   └── prelim_map.txt
-    │   │   ├── human
-    │   │   │   ├── assembly_summary.txt
-    │   │   │   ├── library.fna
-    │   │   │   ├── manifest.txt
-    │   │   │   └── prelim_map.txt
-    │   │   ├── plasmid
-    │   │   │   ├── library.fna
-    │   │   │   ├── library.fna.masked
-    │   │   │   ├── manifest.txt
-    │   │   │   └── prelim_map.txt
-    │   │   ├── UniVec_Core
-    │   │   │   ├── library.fna
-    │   │   │   ├── library.fna.masked
-    │   │   │   ├── prelim_map.txt
-    │   │   │   └── UniVec_Core
-    │   │   └── viral
-    │   │       ├── assembly_summary.txt
-    │   │       ├── library.fna
-    │   │       ├── library.fna.masked
-    │   │       ├── manifest.txt
-    │   │       └── prelim_map.txt
-    │   ├── opts.k2d
-    │   ├── seqid2taxid.map
-    │   ├── taxo.k2d
-    │   └── taxonomy
-    │       ├── accmap.dlflag
-    │       ├── citations.dmp
-    │       ├── delnodes.dmp
-    │       ├── division.dmp
-    │       ├── gc.prt
-    │       ├── gencode.dmp
-    │       ├── images.dmp
-    │       ├── merged.dmp
-    │       ├── names.dmp
-    │       ├── nodes.dmp
-    │       ├── nucl_gb.accession2taxid
-    │       ├── nucl_wgs.accession2taxid
-    │       ├── prelim_map.txt
-    │       ├── readme.txt
-    │       ├── taxdump.dlflag
-    │       ├── taxdump.tar.gz
-    │       └── taxdump.untarflag
+    bac_na
+    ├── hash.k2d
+    ├── library
+    │   └── bacteria
+    │       ├── assembly_summary.txt
+    │       ├── library.fna
+    │       ├── library.fna.tmp
+    │       ├── manifest.txt
+    │       └── prelim_map.txt
+    ├── taxonomy
+    │   ├── accmap.dlflag
+    │   ├── citations.dmp
+    │   ├── delnodes.dmp
+    │   ├── division.dmp
+    │   ├── gc.prt
+    │   ├── gencode.dmp
+    │   ├── images.dmp
+    │   ├── merged.dmp
+    │   ├── names.dmp
+    │   ├── nodes.dmp
+    │   ├── nucl_gb.accession2taxid
+    │   ├── nucl_wgs.accession2taxid
+    │   ├── readme.txt
+    │   ├── taxdump.dlflag
+    │   ├── taxdump.tar.gz
+    │   └── taxdump.untarflag
     ├── CheckM2_database
     │   └── uniref100.KO.1.dmnd
     ├── HLA-ALL.IMGT
@@ -267,7 +236,7 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
     bacc/
     └── SAMPLE
         │  ├── counts_g.txt
-        │  ├── counts_s.txt
+        │  └── counts_s.txt
         ├── normalized_g.txt
         └── normalized_s.txt
            ├── SAMPLE.bai
@@ -279,7 +248,7 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
            └── SAMPLE_unmap_R2.fq
     ```
 
-- `--extract-matrix` would aid in bacterial read count / CPM-normalization / abundance matrix. Make sure that you have already run `bacNeo --bacc` to produce bacterial information per sample. 
+- `--extract-matrix` would aid in bacterial read count / CPM-normalization / abundance matrix, and generate phlygenetic tree based on species abundant across samples. Make sure that you have already run `bacNeo --bacc` to produce bacterial information per sample. 
 
     See usage:
 
@@ -300,11 +269,21 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
     bacc/
     ├── matrix_abundance_g.txt
     ├── matrix_abundance_s.txt
+    ├── out_500.tree
+    ├── out.otu.csv
+    ├── out.tree
+    ├── out_tree_30.png
+    ├── out_tree_500.nwk
+    ├── out_tree_500.png
+    ├── out_tree.nwk
+    ├── out_tree.png
     ├── Plot_abundance_g.pdf
     ├── Plot_abundance_s.pdf
+    ├── standard_reports
+    │   └── SAMPLE.standard
     └── SAMPLE
         │  ├── counts_g.txt
-        │  ├── counts_s.txt
+        │  └── counts_s.txt
         ├── normalized_g.txt
         └── normalized_s.txt
            ├── SAMPLE.bai
