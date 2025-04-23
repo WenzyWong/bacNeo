@@ -91,7 +91,7 @@ usage() {
             2. For multiple samples, it is recommended to use independent directories for each sample
 
     --- Module 2 - Extract matrix
-        (Extract counts / normalized counts after running 'Module 1 - BACC')
+        (Extract counts / normalized counts after running 'Module 1 - BACC' and generating the phylogenetic tree)
             bacNeo --extract-matrix [ -d BACC_OUT_DIR ] [ -l TAXONOMY_LEVEL ] [ -n NORM ]
 
                 --extract-matrix    Extract matrix using specified parameters
