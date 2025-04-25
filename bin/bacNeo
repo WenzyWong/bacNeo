@@ -1,5 +1,4 @@
 #!/bin/bash
-# Global configuration
 declare -A GLOBAL_CONFIG
 
 init_global_config() {
@@ -138,7 +137,7 @@ usage() {
                                     Recommend a clean directory with only fasta files
                 -a                  Directory containing bach results, with sample-specific folders
                 -o                  Output directory path
-                -t                  [Optional] Number of threads (Default threads = 16).
+                -t                  [Optional] Number of threads (Default threads = 16)
         Notes: 
             1. The proteome workflow (-p) and predicted peptide workflow (non -p) are mutually exclusive
             2. For both (-p) and (non -p) workflow, make sure that you have already run 'bacNeo --download-db' and 'bacNeo --bach' 
