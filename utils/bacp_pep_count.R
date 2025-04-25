@@ -165,10 +165,21 @@ V(g)$size <- if_else(grepl(" ", V(g)$name), 5, 3)
 V(g)$label.cex <- if_else(grepl(" ", V(g)$name), 0.5, 0.3)
 V(g)$label.color <- if_else(grepl(" ", V(g)$name), "orange4", "darkolivegreen")
 
+top_edges <- order(E(g)$linesize, decreasing = TRUE)[1:3]
+
+top_edge_groups <- lapply(top_edges, function(e) {
+  ends <- ends(g, e)  # Get the two vertices of the edge
+  c(ends[1], ends[2]) # Return vertex indices
+})
+
 pdf(file.path(OUTPUT, "/species_peptide_network.pdf"), width = 10, height = 10)
 print(plot.igraph(g, 
                   edge.curved = 0,
                   vertex.frame.color = "grey",
-                  vertex.label.dist = 0
+                  vertex.label.dist = 0,
+                  mark.groups = top_edge_groups,
+                  mark.col = NA,
+                  mark.border = "red",
+                  mark.lty = 2
 ))
 dev.off()
