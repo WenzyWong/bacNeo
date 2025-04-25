@@ -104,11 +104,20 @@ calculate_tap_binding <- function(peptides_df) {
   return(peptides_df)
 }
 
-new_strong <- calculate_tap_binding(all_strong)
-new_strong <- new_strong[order(new_strong$TAP_logIC50, new_strong$BA_Rank), ]
-
-new_weak <- calculate_tap_binding(all_weak)
-new_weak <- new_weak[order(new_weak$TAP_logIC50, new_weak$BA_Rank), ]
-
 write.csv(new_strong, paste0(OUTPUT, "/Strong_binders.csv"))
 write.csv(new_weak, paste0(OUTPUT, "/Weak_binders.csv"))
+
+new_strong <- calculate_tap_binding(all_strong) %>%
+  arrange(TAP_logIC50, BA_Rank) %>%
+  filter(TAP_logIC50 < 0) %>%
+  mutate(weight = log2(abs(1/BA_Rank * TAP_logIC50) + 1)) %>%
+  select(icore, HLA_allele, weight)
+write.csv(new_strong, paste0(OUTPUT, "/Strong_network.csv"))
+
+new_weak <- calculate_tap_binding(all_weak) %>%
+  arrange(TAP_logIC50, BA_Rank) %>%
+  filter(TAP_logIC50 < 0) %>%
+  mutate(weight = log2(abs(1/BA_Rank * TAP_logIC50) + 1)) %>%
+  select(icore, HLA_allele, weight)
+
+write.csv(new_weak, paste0(OUTPUT, "/Weak_network.csv"))
