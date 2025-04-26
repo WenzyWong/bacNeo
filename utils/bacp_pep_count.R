@@ -163,7 +163,7 @@ E(g)$width <- E(g)$linesize
 V(g)$color <- if_else(grepl(" ", V(g)$name), "burlywood", "darkseagreen")
 V(g)$size <- if_else(grepl(" ", V(g)$name), 5, 3)
 V(g)$label.cex <- if_else(grepl(" ", V(g)$name), 0.5, 0.3)
-V(g)$label.color <- if_else(grepl(" ", V(g)$name), "orange4", "darkolivegreen")
+V(g)$label.color <- if_else(grepl(" ", V(g)$name), "#E84D00", "#066330")
 
 top_edges <- order(E(g)$linesize, decreasing = TRUE)[1:3]
 
