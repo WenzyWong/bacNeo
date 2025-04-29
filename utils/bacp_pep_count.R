@@ -160,10 +160,10 @@ g <- graph_from_data_frame(link, vertices = vertices, directed = FALSE)
 E(g)$color <- "grey30"
 E(g)$width <- E(g)$linesize
 
-V(g)$color <- if_else(grepl(" ", V(g)$name), "burlywood", "darkseagreen")
+V(g)$color <- if_else(grepl(" ", V(g)$name), "#DABE7B", "#E0F0F6")
 V(g)$size <- if_else(grepl(" ", V(g)$name), 5, 3)
 V(g)$label.cex <- if_else(grepl(" ", V(g)$name), 0.5, 0.3)
-V(g)$label.color <- if_else(grepl(" ", V(g)$name), "#E84D00", "#066330")
+V(g)$label.color <- if_else(grepl(" ", V(g)$name), "#D77F1B", "#4370AA")
 
 top_edges <- order(E(g)$linesize, decreasing = TRUE)[1:3]
 
