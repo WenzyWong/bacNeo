@@ -1357,6 +1357,7 @@ run_bacp() {
 
     echo -e "\033[46;37m >> FINAL STEP: Extracting sample-specific strong and weak binders... \033[0m"
     Rscript "${GLOBAL_CONFIG[BACNEO]}/utils/bacp_binder_summary_with_TAP_efficiency.R" "${PARAMS[OUT]}"
+    Rscript "${GLOBAL_CONFIG[BACNEO]}/utils/bacp_allele_pep_scatter.R" "${PARAMS[OUT]}"
     echo -e "\033[46;37m >> Finish: Processing [Module 4 - Run bacp] \033[0m"
 }
 
