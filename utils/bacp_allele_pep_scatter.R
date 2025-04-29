@@ -53,9 +53,8 @@ p <- ggplot(allele_peptide_data, aes(x = percentage, y = peptide_percentage,
                             nudge_y = 1,
                             alpha = .8) +
   labs(
-    x = "HLA Allele Percentage in Samples (%)",
-    y = "Percentage of Total Peptides Bound (%)",
-    caption = "Data source: draw_allele and strong dataframes"
+    x = "HLA alleles (%)",
+    y = "Bound peptides (%)"
   ) +
   theme_test() +
   theme(
