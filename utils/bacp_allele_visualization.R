@@ -42,6 +42,7 @@ draw_allele <- allele_dt %>%
   rename(allele = V1) %>%
   mutate(sample = gsub("_..*", "", rownames(.)))
 
+write.csv(draw_allele, file.path(DIR, "Allele_summary.csv"))
 draw_line <- 0.2 * nrow(draw_allele)
 
 p <-
