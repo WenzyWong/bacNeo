@@ -12,6 +12,10 @@ The steps for processing sequencing data are modular and independent. Therefore,
 
 To successfully call the commends, please add the directory path of this tool to your environment `PATH`.
 
+## User manual
+
+Please refer to user manual in [`doc/Manual.md`](doc/Manual.md) for detailed guidance.
+
 ## Installation
 
 For simplicity, you could clone `bacNeo` from GitHub and run it directory without installing.
@@ -60,6 +64,12 @@ All requirements are listed in `bacNeo.yml`, and could be installed through the 
 
 - [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/): You need to manually install it because it is not incorporated in `Anaconda`. Open the link above, click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacNeo --bacp`.
 
-## User manual
+## Datasets
 
-Please refer to user manual in `doc/Manual.md`.
+### Pre-constructed reference databases
+
+If you would like to download the pre-constructed reference databases, pleas put them into the `reference/` directory in your `bacNeo` path, and ignore the `bacNeo --download-db` module. Databases are available on Synapse ([syn66327848](https://www.synapse.org/Synapse:syn66327848/files/) and [syn66514464](https://www.synapse.org/Synapse:syn66514464/files/)).
+
+### Test data
+
+RNA-seq raw data of three tumour samples is available on Synapse ([syn66349430])(https://www.synapse.org/Synapse:/files/).
