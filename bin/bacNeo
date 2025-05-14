@@ -605,7 +605,7 @@ extract_matrix() {
     TARGET_DIR="${PARAMS[BACC_OUT_DIR]}/standard_reports"
     mkdir -p "${TARGET_DIR}"
     find "${PARAMS[BACC_OUT_DIR]}" -type f -name "*.standard" -not -path "${TARGET_DIR}/*" -exec mv {} "${TARGET_DIR}" \;
-    python ${GLOBAL_CONFIG[BACNEO]}/utils/create_trees.py -i "${TARGET_DIR}" -o "${PARAMS[BACC_OUT_DIR]}/out_"
+    python ${GLOBAL_CONFIG[BACNEO]}/utils/create_trees.py -i "${TARGET_DIR}" -o "${PARAMS[BACC_OUT_DIR]}/out"
     echo -e "\033[46;37m >> Finish: Processing [Module 2 - Extract matrix] for sample ${SAMPLE}. \033[0m"
 }
 
@@ -695,13 +695,16 @@ run_bach() {
 
     echo -e "\033[46;37m >> STEP 1: Extracting chromesome 6... \033[0m"
     local CHR6="${PARAMS[OUT]}/align/${SAMPLE}_chr6.bam"
-    samtools view -bh "${BAM_FILE}" 6 > "${CHR6}"
+    samtools view -bh "${BAM_FILE}" 6 > "${CHR6}_temp1.bam"
+    samtools view -bh "${BAM_FILE}" chr6 > "${CHR6}_temp2.bam"
+    samtools merge "${CHR6}" "${CHR6}_temp1.bam" "${CHR6}_temp2.bam"
     samtools index "${CHR6}"
+    rm "${CHR6}_temp1.bam" "${CHR6}_temp2.bam"
 
     echo -e "\033[46;37m >> STEP 2: Selected HLA types: ${GENES[*]} \033[0m"
     for GENE in "${GENES[@]}"; do
         echo -e "HLA typing of ${GENE}..."
-        "${TOOL}" -b "${BAM_FILE}" -v 38 -d "${GLOBAL_CONFIG[DB]}/HLA-ALL.IMGT" -g "${GENE}" -t "${PARAMS[THREADS]}" > "${PARAMS[OUT]}/${GENE}.txt"
+        "${TOOL}" -b "${CHR6}" -v 38 -d "${GLOBAL_CONFIG[DB]}/HLA-ALL.IMGT" -g "${GENE}" -t "${PARAMS[THREADS]}" > "${PARAMS[OUT]}/${GENE}.txt"
     done
 
     echo -e "\033[46;37m >> Finish: Processing [Module 3 - Run bach] for sample ${SAMPLE}. \033[0m"
