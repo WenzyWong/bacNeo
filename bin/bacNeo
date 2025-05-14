@@ -1319,7 +1319,7 @@ run_bacp() {
                 -k "${PARAMS[INPUT_DIR]}/${SAMPLE}/${SAMPLE}.KRAKEN" \
                 -s1 "${PARAMS[INPUT_DIR]}/${SAMPLE}/${SAMPLE}_unmap_R1.fq" \
                 -s2 "${PARAMS[INPUT_DIR]}/${SAMPLE}/${SAMPLE}_unmap_R2.fq" \
-                -o "${PARAMS[OUT]}/01_na_fastas/${SAMPLE}_bacreads.fasta"
+                -o "${PARAMS[OUT]}/01_na_fastas/${SAMPLE}_bacreads.fasta" > /dev/null 2>&1
         done
 
         echo -e "\033[46;37m >> STEP 2: Removing potential contaminants and predicting bacterial peptides... \033[0m"
