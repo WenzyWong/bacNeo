@@ -72,4 +72,4 @@ If you would like to download the pre-constructed reference databases, pleas put
 
 ### Test data
 
-RNA-seq raw data of three tumour samples is available on Synapse ([syn66349430])(https://www.synapse.org/Synapse:/files/).
+RNA-seq raw data of three tumour samples is available on Synapse ([syn66349430](https://www.synapse.org/Synapse:syn66349430/files/)).
