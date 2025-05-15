@@ -378,6 +378,7 @@ process_peptides() {
     
     awk 'length($0) >= 5' "${TMP_WINDOW}" > "${OUT_WINDOW}"
     rm "${INPUT_PEP}"
+    rm "${TMP_WINDOW}"
     echo -e "Window sliding completed. Output saved to: ${OUT_WINDOW}"
 
     # Step 2: Split file for parallel processing
@@ -394,7 +395,7 @@ process_peptides() {
     mkdir -p "${OUTPUT}/04_affinity_with_HLAs/${SAMPLE}"
     while read -r TYPE; do
         echo -e "---------------------------------------------------------------------"
-        echo -e "Predicting 04_affinity_with_HLAs for ${SAMPLE} - HLA allele ${TYPE}..."
+        echo -e "Predicting HLA-peptide affinity for ${SAMPLE} - HLA allele ${TYPE}..."
         for split_file in "${TMP_DIR}"/split_*; do
             (
                 local SAFE_TYPE
