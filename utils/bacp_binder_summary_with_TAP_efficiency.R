@@ -23,7 +23,10 @@ for (i in 1:length(hla_files)) {
                                 "BA_Rank", "Ave", "NB", "N")
   
   cols_to_keep <- c("Peptide_ID", "icore", "BA_score", "BA_Rank")
+
   tmp_strong <- affinity_table %>%
+    filter(BA_Rank != "BA-score") %>%
+    mutate(BA_Rank = as.numeric(BA_Rank)) %>%
     filter(BA_Rank <= 0.5) %>%
     select(all_of(cols_to_keep)) %>%
     mutate(
@@ -36,6 +39,8 @@ for (i in 1:length(hla_files)) {
   all_strong <- rbind(all_strong, tmp_strong)
   
   tmp_weak <- affinity_table %>%
+    filter(BA_Rank != "BA-score") %>%
+    mutate(BA_Rank = as.numeric(BA_Rank)) %>%
     filter(BA_Rank <= 2 & BA_Rank > 0.5) %>%
     select(all_of(cols_to_keep)) %>%
     mutate(
@@ -104,8 +109,8 @@ calculate_tap_binding <- function(peptides_df) {
   return(peptides_df)
 }
 
-write.csv(new_strong, paste0(OUTPUT, "/Strong_binders.csv"))
-write.csv(new_weak, paste0(OUTPUT, "/Weak_binders.csv"))
+write.csv(all_strong, paste0(OUTPUT, "/Strong_binders.csv"))
+write.csv(all_weak, paste0(OUTPUT, "/Weak_binders.csv"))
 
 new_strong <- calculate_tap_binding(all_strong) %>%
   arrange(TAP_logIC50, BA_Rank) %>%
