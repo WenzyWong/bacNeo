@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #################################################################################
 # Modified from original source: https://github.com/jenniferlu717/KrakenTools/extract_kraken_reads.py
 # Main modifications:
