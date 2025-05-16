@@ -3,7 +3,7 @@
 # and calculating logIC50 for predicted TAP-binding efficiency
 
 # Yunzhe WANG, yunzhewang24@m.fudan.edu.cn
-# Updated: 2025-01-13
+# Updated: 2025-05-16
 #################################################################################
 library(dplyr)
 
@@ -23,7 +23,10 @@ for (i in 1:length(hla_files)) {
                                 "BA_Rank", "Ave", "NB", "N")
   
   cols_to_keep <- c("Peptide_ID", "icore", "BA_score", "BA_Rank")
+
   tmp_strong <- affinity_table %>%
+    filter(BA_Rank != "BA-score") %>%
+    mutate(BA_Rank = as.numeric(BA_Rank)) %>%
     filter(BA_Rank <= 0.5) %>%
     select(all_of(cols_to_keep)) %>%
     mutate(
@@ -36,6 +39,8 @@ for (i in 1:length(hla_files)) {
   all_strong <- rbind(all_strong, tmp_strong)
   
   tmp_weak <- affinity_table %>%
+    filter(BA_Rank != "BA-score") %>%
+    mutate(BA_Rank = as.numeric(BA_Rank)) %>%
     filter(BA_Rank <= 2 & BA_Rank > 0.5) %>%
     select(all_of(cols_to_keep)) %>%
     mutate(
