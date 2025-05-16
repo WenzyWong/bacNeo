@@ -36,6 +36,7 @@ dependencies:
   - biopython
   - samtools
   - bwa
+  - tree
   - hisat2
   - checkm2
   - maxquant

@@ -3,7 +3,7 @@
 # and calculating logIC50 for predicted TAP-binding efficiency
 
 # Yunzhe WANG, yunzhewang24@m.fudan.edu.cn
-# Updated: 2025-01-13
+# Updated: 2025-05-16
 #################################################################################
 library(dplyr)
 

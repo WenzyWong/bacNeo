@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #################################################################################
 # Extracting phylogenetic tree, OTU table, and tree-plot from Kraken2 report
 ## Inspired by a GitHub issue: https://github.com/jenniferlu717/KrakenTools/issues/46#issuecomment-2387744942
