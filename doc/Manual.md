@@ -1,4 +1,4 @@
-# bacNeo
+# bacNeo Manual
 
 ## Table of Contents
 
@@ -92,19 +92,19 @@ Reference directory: ${THE_PATH_YOU_CLONED_THIS_REPO}/reference
 
 
     Thank you for downloading bacNeo!
-
-    The tool is developed for predicting bacteria-derived neoantigens
-
+    
+    The tool is developped for predicting bacteria-derived neoantigens, more detailed tutorial is available in doc/Manual.md
+    
     bacNeo contains five modules, please check the usage down below
 
     Usage:
 
     --- Module 0 - Download databases
         (Download and build reference databases)
-            bacNeo --download-db [-t THREADS]
-                --download-db       Download and build reference databases
-                -t                  [Optional] Number of threads (Default threads = 16)
-        Note: The process is potentially time-consuming
+        bacNeo --download-db [-t THREADS]
+        --download-db       Download and build reference databases
+        -t                  [Optional] Number of threads (Default: 16)
+        Note: As database-construction is potentially time-consuming, you could also download the pre-constructed databases from Synapse (syn66327848 and syn66514464)
 
     --- Module 1 - Run bacc
         (Identify bacterial reads and abundance from WGS / WES / RNA-seq data)
@@ -113,17 +113,17 @@ Reference directory: ${THE_PATH_YOU_CLONED_THIS_REPO}/reference
         --bacc              Identify bacterial reads and abundance from WGS / WES / RNA-seq data
         -1                  Paired-end clean data (R1) in fastq format
         -2                  Paired-end clean data (R2) in fastq format
-        -m                  Type of omics data. 'RNA' for transcriptome, 'WGS' / 'WES' for genome
-        -r                  If '-m RNA' is input: reference directory path for hisat2 alignment
-                            If '-m WGS/WES' is input: reference directory path for bwa alignment
+        -m                  Type of omics data. 'RNA' for transcriptome, 'WGS' or 'WES' for genome
+        -r                  Reference directory path for hisat2/bwa
+                            If '-m RNA': for hisat2 alignment
+                            If '-m WGS/WES': for bwa alignment
         -o                  Output directory path
-        -t                  [Optional] Number of threads (Default threads = 16)
-        -l                  Taxonomy level you would like to extract
-                            Taxonomy levels include: 'd' for Domain, 'p' for Phylum, 'c' for Class, 'o'for Order, 'f' for Family, 'g' for Genus, and 's' for Species
-                            Please ensure the level(s) you input is(are) included above
-                            If you would like to calculate bacterial counts and normalized counts in multiple levels, you could input the characters one by one, e.g., -l g -l s
+        -t                  [Optional] Number of threads (Default: 16)
+        -l                  Taxonomy level(s)
+                            Available inputs include: 'd'-Domain, 'p'-Phylum, 'c'-Class, 'o'-Order, 'f'-Family, 'g'-Genus, and 's'-Species
+                            If you would like to extract multiple levels, you could input the characters one by one, e.g., -l g -l s
     Notes:
-    1. Make sure that you have already run 'bacNeo --download-db' to generate required databases
+    1. Make sure that you have already run 'bacNeo --download-db' or manually downloaded required databases
     2. For multiple samples, it is recommended to use independent directories for each sample
 
     --- Module 2 - Extract matrix
@@ -132,31 +132,30 @@ Reference directory: ${THE_PATH_YOU_CLONED_THIS_REPO}/reference
 
         --extract-matrix    Extract matrix using specified parameters
         -d, --dir           Directory path for matrix extraction
-        -l, --level         Taxonomic level for calculation
-        -n, --norm          Normalization method name, including 'raw_count', 'CPM', and 'abundance'
-        Note: Make sure that you have already run 'bacNeo --bacc' to extract bacterial reads in all samples
+        -l, --level         Taxonomic level(s) for calculation
+        -n, --norm          Normalization methods, including 'raw_count', 'CPM', and 'abundance'
+        
+    Notes: Make sure that you have already run BACC to extract bacterial reads in all samples
 
     --- Module 3 - Run bach
         (Predict HLA-alleles from WGS / WES data)
         bacNeo --bach [ -1 FQ1 ] [ -2 FQ2 ] [ -r REF ] [ -g GENES ] [ -o OUT ] [ -t THREADS ]
-        (or if you have already used WGS / WES in 'Module 1 - Run bacc', you could also run)
+        (or if you have already used WGS/WES in BACC, you could also run)
         bacNeo --bach [ -c BACC_PATH ] [ -g GENES ] [ -o OUT ] [ -t THREADS ]
 
         --bach              Predict HLA-alleles
         -1                  Paired-end clean data (R1) in fastq format
         -2                  Paired-end clean data (R2) in fastq format
         -r                  Reference fasta file for bwa alignment, either hg38 or hg19
-        -g                  The name(s) of HLA type(s)
-                            HLA types include: HLA-A, HLA-B, HLA-C, HLA-E, HLA-F, HLA-G, MICA, MICB, HLA-DMA, HLA-DMB, HLA-DOA, HLA-DOB, HLA-DPA1, HLA-DPB1, HLA-DQA1, HLA-DQB1, HLA-DRA, HLA-DRB1, HLA-DRB5, TAP1, and TAP2
-                            It is recommended to use HLA class I types (A, B, and C), if your are interested in intra-tumour bacterial neoantigens
-                            If you would like to impute multiple HLA types at once, you could input the types one by one, e.g., -g HLA-A -g HLA-B
+        -g                  HLA type(s), including: HLA-A, HLA-B, HLA-C, HLA-E, HLA-F, HLA-G, MICA, MICB, HLA-DMA, HLA-DMB, HLA-DOA, HLA-DOB, HLA-DPA1, HLA-DPB1, HLA-DQA1, HLA-DQB1, HLA-DRA, HLA-DRB1, HLA-DRB5, TAP1, and TAP2
+                            If you would like to impute multiple HLA types at once, input them one by one, e.g., -g HLA-A -g HLA-B
         -o                  Output directory path
         -c                  Directory path containing pre-processed BAM files
-        -t                  [Optional] Number of threads (Default threads = 16)
-        Notes:
-        1. Make sure that you have already run 'bacNeo --download-db' to generate required databases
-        2. If you have genome data, it is recommended to run the second workflow to save space and time
-        3. For multiple samples, it is recommended to use independent directories for each sample
+        -t                  [Optional] Number of threads (Default: 16)
+    Notes:
+    1. Make sure that you have already run 'bacNeo --download-db' or manually downloaded required databases
+    2. If you input genome data, it is recommended to run the second workflow to save space and time
+    3. For multiple samples, it is recommended to use independent directories for each sample
 
     --- Module 4 - Run bacp
         (Predict bacterial neoantigens based on proteome data)
@@ -174,12 +173,12 @@ Reference directory: ${THE_PATH_YOU_CLONED_THIS_REPO}/reference
                             Recommend a clean directory with only fasta files
         -a                  Directory containing bach results, with sample-specific folders
         -o                  Output directory path
-        -t                  [Optional] Number of threads (Default threads = 16).
-        Notes:
-        1. The proteome workflow (-p) and predicted peptide workflow (non -p) are mutually exclusive
-        2. For both (-p) and (non -p) workflow, make sure that you have already run 'bacNeo --download-db' and 'bacNeo --bach'
-        3. For (non -p) workflow, make sure that you have already run 'bacNeo --bacc'
-        4. For multiple samples, you could input them all at one, based on the directory path of 'bacNeo --bach' and / or 'bacNeo --bacc' output
+        -t                  [Optional] Number of threads (Default: 16).
+    Notes:
+    1. The proteome workflow (-p) and predicted peptide workflow (non -p) are mutually exclusive
+    2. For both (-p) and (non -p) workflow, make sure that you have already constructed reference databases and run 'bacNeo --bach'
+    3. For (non -p) workflow, make sure that you have already run 'bacNeo --bacc'
+    4. For multiple samples, you could input them all at once, based on the directory path of 'bacNeo --bach' and / or 'bacNeo --bacc' output
 
     -h, --help                      Show this help message
 ```
@@ -193,6 +192,10 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
 The majority of the codes were written in `bash shell`. The developed version of `bash` was 5.1.16. Make sure the `bash` version in your machine is newer than version 5.0. You can use `echo $BASH_VERSION` to check the version.
 
 If the default `/bin/bash` doesn't meet our requirement and updating the `bash` version may harm your environment, you could also replace `#!/bin/bash` to `#!/${PATH_OF_YOUR_BACNEO_ANACONDA_ENVS}/bin/bash` in `${PATH_OF_BACNEO}/bin/bacNeo`.
+
+### `tcsh` Version
+
+Running BACP is dependent on netMHCpan, which is written in `tcsh`.
 
 ### Specific for BACP
 
@@ -223,7 +226,7 @@ Usage:
 
 bacNeo --download-db [-t THREADS]
 --download-db       Download and build reference databases
--t                  [Optional] Number of threads (Default threads = 16)
+-t                  [Optional] Number of threads (Default: 16)
 Note: The process is potentially time-consuming
 ```
 
@@ -331,7 +334,7 @@ bacNeo --bacc [ -1 FQ1 ] [ -2 FQ2 ] [-m OMICS] [ -r REF ] [ -o OUT ] [ -t THREAD
     -r                  For transcriptome: reference directory path for hisat2 alignment, e.g., ${PATH_OF_HISAT}/hg38
                         For genome: reference directory path for bwa alignment, e.g., ${PATH_OF_BWA}/hg38.fa
     -o                  Output directory path
-    -t                  [Optional] Number of threads (Default threads = 16)
+    -t                  [Optional] Number of threads (Default: 16)
     -l                  Taxonomy level(s) you would like to extract
                         Taxonomy levels include: 'd'-Domain, 'p'-Phylum, 'c'-Class, 'o'-Order, 'f'-Family, 'g'-Genus, and 's'-Species
                         Please ensure the level(s) you input is(are) included above
@@ -433,7 +436,7 @@ bacNeo --bach [ -c BACC_PATH ] [ -g GENES ] [ -o OUT ] [ -t THREADS ]
                         If you would like to impute multiple HLA types at once, you could input the types one by one, e.g., -g HLA-A -g HLA-B
     -o                  Output directory path
     -c                  Directory path containing pre-processed BAM files
-    -t                  [Optional] Number of threads (Default threads = 16)
+    -t                  [Optional] Number of threads (Default: 16)
 Notes:
     1. Make sure that you have already run 'bacNeo --download-db' to generate required databases
     2. If you have genome data, it is recommended to run the second workflow to save space and time
@@ -444,11 +447,14 @@ Taking HLA-A as an example, the output folder would look like:
 
 ```plain
 bach/
+
 └── SAMPLE
-       ├── align
-       │   ├── SAMPLE_chr6.bam
-       │   └── SAMPLE_chr6.bam.bai
-       └── HLA-A.txt
+    ├── align
+    │   ├── SAMPLE_chr6.bam
+    │   └── SAMPLE_chr6.bam.bai
+    └── HLA-A.txt
+
+2 directories, 3 files
 ```
 
 ### BACP
@@ -473,7 +479,7 @@ bach/
                             Recommend a clean directory with only fasta files
         -a                  Directory containing bach results, with sample-specific folders
         -o                  Output directory path
-        -t                  [Optional] Number of threads (Default threads = 16).
+        -t                  [Optional] Number of threads (Default: 16).
     Notes:
         1. The proteome workflow (-p) and predicted peptide workflow (non -p) are mutually exclusive
         2. For both (-p) and (non -p) workflow, make sure that you have already run 'bacNeo --download-db' and 'bacNeo --bach'

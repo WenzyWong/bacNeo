@@ -377,7 +377,6 @@ process_peptides() {
     done < "${INPUT_PEP}"
     
     awk 'length($0) >= 5' "${TMP_WINDOW}" > "${OUT_WINDOW}"
-    rm "${INPUT_PEP}"
     rm "${TMP_WINDOW}"
     echo -e "Window sliding completed. Output saved to: ${OUT_WINDOW}"
 
@@ -426,7 +425,7 @@ process_peptides() {
             mkdir -p "$(dirname "${OUTPUT_FILE}")"
             head -n 1 "${FIRST_RESULT}" > "${OUTPUT_FILE}"
             
-            for result in ${PATTERN}
+            for result in "${PATTERN}"
             do
                 if [ -f "${result}" ]; then
                     tail -n +2 "${result}" >> "${OUTPUT_FILE}"
