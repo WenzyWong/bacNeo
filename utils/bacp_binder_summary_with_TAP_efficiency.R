@@ -104,8 +104,8 @@ calculate_tap_binding <- function(peptides_df) {
   return(peptides_df)
 }
 
-write.csv(new_strong, paste0(OUTPUT, "/Strong_binders.csv"))
-write.csv(new_weak, paste0(OUTPUT, "/Weak_binders.csv"))
+write.csv(all_strong, paste0(OUTPUT, "/Strong_binders.csv"))
+write.csv(all_weak, paste0(OUTPUT, "/Weak_binders.csv"))
 
 new_strong <- calculate_tap_binding(all_strong) %>%
   arrange(TAP_logIC50, BA_Rank) %>%
