@@ -10,7 +10,7 @@
 
   - [`bash` Version](#bash-version)
 
-  - [Specific for BACP](#specific-for-bacp)
+  - [netMHCpan-4.1](#netmhcpan-41)
 
   - [Harkware Recommendation](#hardware-recommendation)
 
@@ -191,17 +191,15 @@ Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neo
 
 The majority of the codes were written in `bash shell`. The developed version of `bash` was 5.1.16. Make sure the `bash` version in your machine is newer than version 5.0. You can use `echo $BASH_VERSION` to check the version.
 
-If the default `/bin/bash` doesn't meet our requirement and updating the `bash` version may harm your environment, you could also replace `#!/bin/bash` to `#!/${PATH_OF_YOUR_BACNEO_ANACONDA_ENVS}/bin/bash` in `${PATH_OF_BACNEO}/bin/bacNeo`.
+If the default `/bin/bash` doesn't meet our requirement and updating the `bash` version may harm your environment, you could also replace `#!/bin/bash` to `#!/${PATH_OF_YOUR_BACNEO_ANACONDA_ENVS}/bin/bash` in `./bin/bacNeo`.
 
 ### `tcsh` Version
 
-Running BACP is dependent on netMHCpan, which is written in `tcsh`.
+Running BACP is dependent on netMHCpan, which is written in `tcsh`. The developed version of `tcsh` was 6.18.01. Make sure the `tcsh` version in your machine is newer than version 6.
 
-### Specific for BACP
+### netMHCpan-4.1
 
-- `Anaconda` based requirements: install the requirements listed in `bacNeo.yml`, following the the commands in the section [Installation](#installation).
-
-- [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/): You need to manually install it because it is not incorporated in `Anaconda`. Open the link above, click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacNeo --bacp`.
+As the [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/) is a lisenced software which requires manually application, you need to manually install it. Open the link above, click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacNeo --bacp`.
 
 ### Hardware Recommendation
 
@@ -302,7 +300,7 @@ reference/
 11 directories, 54 files
 ```
 
-You could remove directories and files other than `.k2d` files within in `reference/bac_na/` to save spaces. That would make the structure of `reference/` would look like, which is identical to manually downloaded reference:
+In `reference/bac_na/`, you could remove all directories and files other than `.k2d` files to save spaces. That would make the structure of `reference/` look like the following one, which is identical to manually downloaded reference (see [Datasets](#datasets) - [Pre-constructed Reference Databases](#pre-constructed-reference-databases)):
 
 ```plain
 reference/
@@ -320,7 +318,7 @@ reference/
 
 ## BACC
 
-`--bacc` can extract the number of bacterial componants from genome or transcriptome datasets, and output raw counts and normalized data (CPM and/or abundance). The command will generate sample-specific bacterial counts/CPM/abundance within your input taxonomic level(s).
+`--bacc` can extract the number of bacterial componants from genome or transcriptome datasets, and output raw counts and normalized data (CPM and/or abundance) with charts and graphics to assist downstream analysis. The command will generate sample-specific bacterial counts/CPM/abundance within your input taxonomic level(s).
 
 See usage:
 
