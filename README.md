@@ -48,21 +48,19 @@ bacNeo -h
 
 ## Requirements
 
-### `bash` version
+### `bash` Version
 
 The majority of the codes were written in `bash shell`. The developed version of `bash` was 5.1.16. Make sure the `bash` version in your machine is newer than version 5.0. You can use `echo $BASH_VERSION` to check the version.
 
-If the default `/bin/bash` doesn't meet our requirement and updating the `bash` version may harm your environment, you could also replace `#!/bin/bash` to `#!/${PATH_OF_YOUR_BACNEO_ANACONDA_ENVS}/bin/bash` in `${PATH_OF_BACNEO}/bin/bacNeo`.
+If the default `/bin/bash` doesn't meet our requirement and updating the `bash` version may harm your environment, you could also replace `#!/bin/bash` to `#!/${PATH_OF_YOUR_BACNEO_ANACONDA_ENVS}/bin/bash` in `./bin/bacNeo`.
 
-### For modules other than `--bacp`
+### `tcsh` Version
 
-All requirements are listed in `bacNeo.yml`, and could be installed through the commands listed in the section [Installation](#installation).
+Running BACP is dependent on netMHCpan, which is written in `tcsh`. The developed version of `tcsh` was 6.18.01. Make sure the `tcsh` version in your machine is newer than version 6.
 
-### For module `--bacp`
+### netMHCpan-4.1
 
-- `Anaconda` based requirements: install the requirements listed in `bacNeo.yml`, following the the commands in the section [Installation](#installation).
-
-- [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/): You need to manually install it because it is not incorporated in `Anaconda`. Open the link above, click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacNeo --bacp`.
+As the [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/) is a lisenced software which requires manually application, you need to manually install it. Open the link above, click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacNeo --bacp`.
 
 ## Datasets
 
