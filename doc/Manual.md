@@ -183,7 +183,7 @@ Reference directory: ${THE_PATH_YOU_CLONED_THIS_REPO}/reference
     -h, --help                      Show this help message
 ```
 
-Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neoantigens, you need to manually install [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/), which is not incorporated in conda (see [Requirenments](#requirements)-[Specific for BACP](#specific-for-bacp)).
+Additionally, if you want to run `bacNeo --bacp` to predict bacteria-derived neoantigens, you need to manually install [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/), which is not incorporated in conda (see [Requirenments](#requirements)-[netMHCpan-4.1](#netmhcpan-41)).
 
 ## Requirements
 
@@ -596,4 +596,3 @@ If you would like to download the pre-constructed reference databases, pleas put
 
 ### Test Data
 
-RNA-seq raw data of three tumour samples is available on Synapse (accession: [syn66349430](https://www.synapse.org/Synapse:syn66349430/files/)).
