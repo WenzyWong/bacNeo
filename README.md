@@ -60,7 +60,7 @@ Running BACP is dependent on netMHCpan, which is written in `tcsh`. The develope
 
 ### netMHCpan-4.1
 
-As the [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/) is a lisenced software which requires manually application, you need to manually install it. Open the link above, click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacNeo --bacp`.
+As `bacNeo --bacp` uses [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/), a lisenced software which requires manually application, you need to manually install it. Open the link above, click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacNeo --bacp`.
 
 ## Datasets
 
