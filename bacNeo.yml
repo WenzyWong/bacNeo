@@ -9,6 +9,7 @@ dependencies:
   - ucsc-fatrans
   - ete3
   - R
+  - sra-tools
   - r-patchwork
   - r-remotes
   - r-ggplot2
