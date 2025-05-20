@@ -558,6 +558,17 @@ ref="${PATH_OF_YOUR_REFERENCE_FASTA}"
 out="${DIRECTORY_PATH_OF_OUTPUT}"
 threads="${THREADS}"
 
+# Remove the following hash tags if you want to run our test data
+#prefetch ERR2208888 --output-directory ${dir_dt}
+#prefetch ERR2208900 --output-directory ${dir_dt}
+#prefetch ERR2208903 --output-directory ${dir_dt}
+
+#ls "${dt_dir}" | while read id
+#do
+#    fastq-dump --split-files "${dt_dir}/${id}/${id}.sra" --gzip --outdir "${dt_dir}/${id}"
+#    rm "${dt_dir}/${id}/${id}.sra"
+#done
+
 # If pre-constructed reference databases have not been downloaded, remove the hash below
 # bacNeo --download-db -t "${threads}"
 mkdir -p "${out}/bacc"
@@ -595,4 +606,3 @@ bacNeo --bacp -i "${out}/bacc" -a "${out}/bach" -o "${out}/bacp" -t "${threads}"
 If you would like to download the pre-constructed reference databases, pleas put them into the `reference/` directory in your `bacNeo` path, and ignore the `bacNeo --download-db` module. Databases are available on Synapse (accession: [syn66327848](https://www.synapse.org/Synapse:syn66327848/files/) and [syn66514464](https://www.synapse.org/Synapse:syn66514464/files/)).
 
 ### Test Data
-
