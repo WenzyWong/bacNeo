@@ -17,6 +17,7 @@ all_weak <- data.frame()
 
 for (i in 1:length(hla_files)) {
   tmp_file <- hla_files[i]
+  print(paste0("Read table: ", tmp_file))
   affinity_table <- read.delim(paste0(OUTPUT, "/", tmp_file), skip = 2, header = F)
   colnames(affinity_table) <- c("Pos", "Peptide_ID", "core", "icore", 
                                 "EL_score", "EL_Rank", "BA_score", 
