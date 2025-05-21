@@ -7,7 +7,7 @@
 args = commandArgs(trailingOnly=TRUE)
 
 DIR <- args[1]
-FILE <- list.files(DIR)
+FILE <- list.files(DIR, pattern = "txt")
 
 if (!requireNamespace("dplyr", quietly = TRUE)) {
   install.packages("dplyr", repos = "https://cloud.r-project.org")
@@ -39,7 +39,7 @@ for (i in 1:length(FILE)){
 }
 
 draw_allele <- allele_dt %>%
-  rename(allele = V1) %>%
+  rename(allele = gsub("N", "", V1)) %>%
   mutate(sample = gsub("_..*", "", rownames(.)))
 
 write.csv(draw_allele, file.path(DIR, "Allele_summary.csv"))
