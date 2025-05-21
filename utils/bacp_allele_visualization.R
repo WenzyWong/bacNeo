@@ -39,7 +39,8 @@ for (i in 1:length(FILE)){
 }
 
 draw_allele <- allele_dt %>%
-  rename(allele = gsub("N", "", V1)) %>%
+  rename(allele = V1) %>%
+  mutate(allele = gsub("N", "", allele)) %>%
   mutate(sample = gsub("_..*", "", rownames(.)))
 
 write.csv(draw_allele, file.path(DIR, "Allele_summary.csv"))
