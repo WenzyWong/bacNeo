@@ -11,6 +11,9 @@ if (!requireNamespace("ggplot2", quietly = TRUE)) {
 if (!requireNamespace("paletteer", quietly = TRUE)) {
   install.packages("paletteer", repos = "https://cloud.r-project.org")
 }
+if (!requireNamespace("ggrepel", quietly = TRUE)) {
+  install.packages("ggrepel", repos = "https://cloud.r-project.org")
+}
 
 library(dplyr)
 library(ggplot2)
@@ -37,7 +40,7 @@ allele_peptide_data <- allele_freq %>%
 
 rainbow_colour <- paletteer_d("khroma::smoothrainbow")
 n_allele <- length(unique(allele_peptide_data$allele))
-if (n_allele < length(allele_colour)) {
+if (n_allele < length(rainbow_colour)) {
   allele_colour <- rainbow_colour[seq(1, length(rainbow_colour), by = round(length(rainbow_colour)/n_allele))]
 } else {
   all_colour <- paletteer_d("palettesForR::Named")
