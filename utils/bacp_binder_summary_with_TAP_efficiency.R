@@ -11,7 +11,6 @@ args = commandArgs(trailingOnly=TRUE)
 OUTPUT <- args[1]
 
 hla_files <- list.files(path = OUTPUT, pattern = "HLA-", recursive = T)
-hla_files <- hla_files[grepl("split", hla_files)]
 
 all_strong <- data.frame()
 all_weak <- data.frame()
