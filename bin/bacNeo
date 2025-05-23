@@ -390,11 +390,20 @@ process_peptides() {
 
     split -l "${LINES_PER_THREAD}" "${OUT_WINDOW}" "${TMP_DIR}/split_"
 
-    # Step 3: Process each HLA type
+    # Step 3: Get unique HLA alleles to avoid duplicate processing
+    local UNIQUE_ALLELES_FILE="${TMP_DIR}/unique_alleles.txt"
+    sort "${OUTPUT}/00_allele_summary/${SAMPLE}.txt" | uniq > "${UNIQUE_ALLELES_FILE}"
+    
+    echo -e "Unique HLA alleles for ${SAMPLE}:"
+    cat "${UNIQUE_ALLELES_FILE}"
+
+    # Step 4: Process each unique HLA type
     mkdir -p "${OUTPUT}/04_affinity_with_HLAs/${SAMPLE}"
     while read -r TYPE; do
         echo -e "---------------------------------------------------------------------"
         echo -e "Predicting HLA-peptide affinity for ${SAMPLE} - HLA allele ${TYPE}..."
+        
+        # Process all split files for this HLA type in parallel
         for split_file in "${TMP_DIR}"/split_*; do
             (
                 local SAFE_TYPE
@@ -410,9 +419,10 @@ process_peptides() {
             done
         done
         wait
-        # Step 4: Combine results from all threads
+        
+        # Step 5: Combine results from all threads for this HLA type
         echo "---------------------------------------------------------------------"
-        echo "Combining multi-threads results..."
+        echo "Combining multi-threads results for HLA allele ${TYPE}..."
         local SAFE_TYPE
         SAFE_TYPE=$(echo "${TYPE}" | tr ':' '_')
         local OUTPUT_FILE="${OUTPUT}/04_affinity_with_HLAs/${SAMPLE}/${SAMPLE}_${SAFE_TYPE}.xls"
@@ -423,21 +433,25 @@ process_peptides() {
 
         if [ -n "${FIRST_RESULT}" ]; then
             mkdir -p "$(dirname "${OUTPUT_FILE}")"
+            # Copy header from first file
             head -n 1 "${FIRST_RESULT}" > "${OUTPUT_FILE}"
             
-            for result in "${PATTERN}"
-            do
+            # Append data from all split files
+            for result in ${PATTERN}; do
                 if [ -f "${result}" ]; then
                     tail -n +2 "${result}" >> "${OUTPUT_FILE}"
                     rm -f "${result}"
                 fi
             done
+            echo "Combined results saved to: ${OUTPUT_FILE}"
         else
             echo "Warning: No split files found matching pattern: ${PATTERN}"
         fi
-    done < "${OUTPUT}/00_allele_summary/${SAMPLE}.txt"
+    done < "${UNIQUE_ALLELES_FILE}"
 
+    # Clean up temporary files
     rm -rf "${TMP_DIR}"
+    rm -f "${OUT_WINDOW}"
 }
 
 #################################
@@ -501,13 +515,13 @@ run_bacc() {
     case "${PARAMS[OMICS]}" in
         "RNA")
             echo -e "\033[46;37m >> STEP 0: Aligning for RNA sequencing... \033[0m"
-            hisat2 -x "${PARAMS[REF]}" -1 "${PARAMS[FQ1]}" -2 "${PARAMS[FQ2]}" -p "${PARAMS[THREADS]}" -S "${PARAMS[OUT]}/${SAMPLE}.sam" > /dev/null
+            hisat2 -x "${PARAMS[REF]}" -1 "${PARAMS[FQ1]}" -2 "${PARAMS[FQ2]}" -p "${PARAMS[THREADS]}" -S "${PARAMS[OUT]}/${SAMPLE}.sam"
             ;;
         "WES"|"WGS")
             echo -e "\033[46;37m >> STEP 0: Aligning for ${PARAMS[OMICS]}... \033[0m"
             bwa mem -t "${PARAMS[THREADS]}" -M \
                 -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" \
-                "${PARAMS[REF]}" "${PARAMS[FQ1]}" "${PARAMS[FQ2]}" > "${PARAMS[OUT]}/${SAMPLE}.sam" > /dev/null
+                "${PARAMS[REF]}" "${PARAMS[FQ1]}" "${PARAMS[FQ2]}" > "${PARAMS[OUT]}/${SAMPLE}.sam"
             ;;
         *)
             echo -e "\033[31m Wrong parameter -m, please check the help file. \033[0m"
@@ -754,7 +768,7 @@ run_bacp() {
     for SAMPLE_PATH in "${PARAMS[ALLELE_DIR]}"/*; do
         SAMPLE=$(basename "${SAMPLE_PATH}")
         # shellcheck disable=SC2016
-        find "${PARAMS[ALLELE_DIR]}/${SAMPLE}" -name "HLA-*.txt" -print0 | xargs awk '/HLA gene/ {split($0,a,": "); gene=a[2]} /Type [12]/ {split($3,b,":"); print gene b[1]":"b[2]}' > "${PARAMS[OUT]}/00_allele_summary/${SAMPLE}.txt"
+        find "${PARAMS[ALLELE_DIR]}/${SAMPLE}" -name "HLA-*.txt" -print0 | xargs awk '/HLA gene/ {split($0,a,": "); gene=a[2]} /Type [12]/ {split($3,b,":"); result=gene b[1]":"b[2]; gsub(/N/, "", result); print result}' > "${PARAMS[OUT]}/00_allele_summary/${SAMPLE}.txt"
     done
     echo -e "Plotting the distribution of HLA alleles among samples into ${PARAMS[OUT]}/00_allele_summary/Bar_distribution_alleles.pdf"
     Rscript "${GLOBAL_CONFIG[BACNEO]}/utils/bacp_allele_visualization.R" "${PARAMS[OUT]}/00_allele_summary"
@@ -764,7 +778,7 @@ run_bacp() {
         echo -e "\033[46;37m >> STEP 1: Preprocessing reference fasta... \033[0m"
         cat "${PARAMS[REF_DIR]}"/*.fasta > "${PARAMS[REF_DIR]}/reference.fa"
         OUT_CDHIT="${PARAMS[REF_DIR]}/reference_rmdup.fa"
-        cd-hit -i "${PARAMS[REF_DIR]}/reference.fa" -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > /dev/null
+        cd-hit -i "${PARAMS[REF_DIR]}/reference.fa" -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > /dev/null 2>&1
 
         mkdir -p "${PARAMS[OUT]}/tmp"
         declare -A seen
@@ -1345,7 +1359,7 @@ run_bacp() {
             
             OUT_CDHIT="${PARAMS[OUT]}/03_amino_acid_processing/${SAMPLE}_bacpep_cdhit.fa"         
             cd-hit -i "${PARAMS[OUT]}/02_predicted_protein/${SAMPLE}/protein_files/${SAMPLE}_bacreads.faa" \
-                -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > /dev/null
+                -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > /dev/null 2>&1
             echo -e "Processing sample ${SAMPLE}: Removing bacterial peptide sequences without start codon and ribosome binding sites..."
             INPUT_PEP="${PARAMS[OUT]}/03_amino_acid_processing/${SAMPLE}_bacpep.txt"
             awk '/^>/ {header=$0; getline seq; if (header !~ /rbs_motif=None/ && header !~ /start_type=Edge/) print seq}' \
