@@ -8,6 +8,8 @@ dependencies:
   - cd-hit
   - ucsc-fatrans
   - ete3
+  - qt
+  - pyqt
   - R
   - sra-tools
   - r-patchwork
