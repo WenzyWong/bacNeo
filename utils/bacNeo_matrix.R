@@ -66,7 +66,7 @@ NORM <- args$norm
 ######
 # Main
 SAMPLE <- list.files(DIR_RES, recursive = F)
-SAMPLE <- SAMPLE[!grepl("standard")]
+SAMPLE <- SAMPLE[!grepl("standard", SAMPLE)]
 
 dir_norm <- paste0(DIR_RES, "/", SAMPLE, "/normalized_",
                    TAXONOMY, ".txt")
