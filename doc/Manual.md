@@ -559,9 +559,9 @@ out="${DIRECTORY_PATH_OF_OUTPUT}"
 threads="${THREADS}"
 
 # Remove the following hash tags if you want to run our test data
-#prefetch ERR2208968 --output-directory ${dir_dt}
-#prefetch ERR2208969 --output-directory ${dir_dt}
-#prefetch ERR2208946 --output-directory ${dir_dt}
+#prefetch SRR33242434 --output-directory ${dir_dt}
+#prefetch SRR33242436 --output-directory ${dir_dt}
+#prefetch SRR33242438 --output-directory ${dir_dt}
 
 #ls "${dt_dir}" | while read id
 #do
@@ -584,7 +584,7 @@ do
     out_bacc="${out}/bacc/${sample}"
     mkdir -p "${out_bacc}"
     # Using both genus and species levels as an example
-    bacNeo --bacc -1 "${fq1}" -2 "${fq2}" -m RNA -r "${ref}" -o "${out_bacc}" -l s -l g -t "${threads}"
+    bacNeo --bacc -1 "${fq1}" -2 "${fq2}" -m RNA -r "${ref}" -o "${out_bacc}" -l s -t "${threads}"
 
     # Run bach, using aligned .bam file from bacc result
     out_bach="${out}/bach/${sample}"
@@ -607,4 +607,4 @@ If you would like to download the pre-constructed reference databases, pleas put
 
 ### Test Data
 
-We used three pre-treatment RNA-seq datasets randomized from BioProject (accession: [PRJEB23709](https://www.ncbi.nlm.nih.gov/Traces/study/?acc=ERP105482&o=bytes_l%3Ad) - ERR2208968, ERR2208969, and ERR2208946).
+We used the raw WES data from BioProject (accession: [PRJNA1253793](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1253793) - SRR33242434, SRR33242436, and SRR33242438).
