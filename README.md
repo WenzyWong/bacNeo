@@ -70,4 +70,4 @@ If you would like to download the pre-constructed reference databases, pleas put
 
 ### Test data
 
-We used three pre-treatment RNA-seq datasets randomized from BioProject (accession: [PRJEB23709](https://www.ncbi.nlm.nih.gov/Traces/study/?acc=ERP105482&o=bytes_l%3Ad) - ERR2208968, ERR2208969, and ERR2208946).
+We used the raw WES data from BioProject (accession: [PRJNA1253793](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1253793) - SRR33242434, SRR33242436, and SRR33242438).
