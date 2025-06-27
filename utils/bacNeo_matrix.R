@@ -116,12 +116,14 @@ if (NORM == "abundance" | NORM == "CPM") {
     abund_alluvium,
     "others" = 100 - apply(abund_alluvium, MARGIN = 2, FUN = sum)
   )
+  abund_alluvium <- abund_alluvium[, order(as.numeric(abund_alluvium[1,]), decreasing = T)]
   abund_alluvium$taxonomy <- rownames(abund_alluvium)
   abund_alluvium <- reshape2::melt(abund_alluvium)
 
   abund_col <- c("#64A4CC", "#9CCEE3", "#ADE0DC", "#D3F2D6", "#ECF6C8", 
                 "#FEEDAA", "#F89D59", "#E75B3A", "#CD2626", "#9A342C", 
                 "#DCDCDC")
+  n_samples <- length(unique(abund_alluvium$variable))
 
   p1 <- 
     ggplot(data = abund_alluvium, aes(x = variable, y = value, 
@@ -131,10 +133,10 @@ if (NORM == "abundance" | NORM == "CPM") {
                                     levels = unique(taxonomy))), 
                   alpha = 1) +
     scale_fill_manual(values = abund_col, name = "Taxonomy") +
-    xlab("Samples") +
+    xlab(if(n_samples > 15) "Sample" else "Samples") +
     ylab("Relative abundance (%)") +
     theme_test() +
-    theme(axis.text.x = element_text(angle = 90, vjust = .5, colour = 1), 
+    theme(axis.text.x = if(n_samples > 15) element_blank() else element_text(angle = 90, vjust = .5, colour = 1), 
           axis.text.y = element_text(colour = 1),
           panel.grid.minor = element_blank(),
           panel.grid.major = element_blank(),
