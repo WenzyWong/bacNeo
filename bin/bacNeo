@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/data/yzwang/tool/mamba/envs/bacNeo/bin/bash
 declare -A GLOBAL_CONFIG
 
 init_global_config() {
