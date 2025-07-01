@@ -70,4 +70,8 @@ If you would like to download the pre-constructed reference databases, pleas put
 
 ### Test data
 
-We used the raw WES data from BioProject (accession: [PRJNA1253793](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1253793) - SRR33242434, SRR33242436, and SRR33242438).
+We used the raw WES data from BioProject (accession: [PRJNA1253793](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1253793) - SRR33242434, SRR33242436, and SRR33242438). The accession list is in `test/SRR_Acc_List`.
+
+### Script and data for regenerating outputs
+
+In order to verify the repeatability of the tool and facilitate readers to reproduce the test results presented in our article, we uploaded the test script to `test/generate_aeg_figures.R` with pre-processed data `test/rds/*` and expected outputs `test/outputs/*`.
