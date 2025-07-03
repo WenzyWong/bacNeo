@@ -118,9 +118,7 @@ dev.off()
 # Peptide selection
 strong.binders <- strong.binders %>%
   arrange(BArank) %>%
-  group_by(Allele) %>%
-  mutate(AlleleFreq = n()) %>%
-  ungroup()
+  add_count(Allele, name = "AlleleFreq")
 write.csv(strong.binders, "./outputs/strong_binder_stats.csv")
 table(strong.binders$Allele)
 binder.sankey <- data.frame(
