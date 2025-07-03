@@ -22,6 +22,7 @@ library(scales)
 # Data preprocessing
 pep.raw <- readRDS("./rds/peptides_raw.rds")
 cpm.species <- readRDS("./rds/rna_cpm.rds")
+strong.binders <- readRDS("./rds/strong_binder.rds")
 
 mtx.pep <- sign(pep.raw[ , 4:(ncol(pep.raw) - 1)])
 rownames(mtx.pep) <- pep.raw$Protein.IDs
@@ -85,7 +86,7 @@ dev.off()
 
 # Plotting species detected consistently
 high_detection_species <- detection_stats$species[
-  detection_stats$rna_detection_freq > 0.5 & detection_stats$pep_detection_freq > 0.5
+  detection_stats$rna_detection_freq > 0.2 & detection_stats$pep_detection_freq > 0.2
   ]
 
 detection_matrix <- rbind(
@@ -104,12 +105,24 @@ detection_matrix_filtered <- detection_matrix[, valid_samples]
 col_fun <- c("0" = "white", "1" = "darkblue")
 
 p2 <-
-  Heatmap(detection_matrix_filtered,
+  Heatmap(sign(pep_detected[high_detection_species, ]),
           name = "Detection", col = col_fun, 
           column_title = "Samples", column_title_side = "bottom",
           show_column_names = F,
           row_names_gp = gpar(fontface = "italic", fontsize = 10)
   )
-pdf("./outputs/detection_matrix.pdf", width = 7, height = 4)
+pdf("./outputs/detection_matrix.pdf", width = 6, height = 4)
 draw(p2)
 dev.off()
+
+# Peptide selection
+table(strong.binders$Allele)
+binder.sankey <- data.frame(
+  Source = c(strong.binders$Allele, strong.binders$Peptide, strong.binders$ProteinID),
+  Target = c(strong.binders$Peptide, strong.binders$ProteinID, strong.binders$Species)
+)
+
+binder.sankey <- binder.sankey %>%
+  mutate(Value = c(table(Source)[Source]))
+dim(binder.sankey)
+write.csv(binder.sankey, "./outputs/strong_binders_sankey.csv")
