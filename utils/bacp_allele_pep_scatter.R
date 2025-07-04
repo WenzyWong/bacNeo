@@ -41,7 +41,7 @@ allele_peptide_data <- allele_freq %>%
 rainbow_colour <- paletteer_d("khroma::smoothrainbow")
 n_allele <- length(unique(allele_peptide_data$allele))
 if (n_allele < length(rainbow_colour)) {
-  allele_colour <- rainbow_colour[seq(1, length(rainbow_colour), by = round(length(rainbow_colour)/n_allele))]
+  allele_colour <- rainbow_colour[seq(1, length(rainbow_colour), by = round(length(rainbow_colour)/n_allele) - 1)]
 } else {
   all_colour <- paletteer_d("palettesForR::Named")
   allele_colour <- all_colour[seq(1, length(all_colour), by = round(length(all_colour)/n_allele))]
