@@ -4,7 +4,7 @@
 #
 # Yunzhe Wang, yunzhewang24@m.fudan.edu.cn
 # Created: 2025-06-30
-# Updated: 2025-07-02
+# Updated: 2025-07-05
 ##########################################
 library(ggplot2)
 library(dplyr)
@@ -18,11 +18,13 @@ library(pheatmap)
 library(VennDiagram)
 library(reshape2)
 library(scales)
+library(forcats)
 
 # Data preprocessing
 pep.raw <- readRDS("./rds/peptides_raw.rds")
 cpm.species <- readRDS("./rds/rna_cpm.rds")
 strong.binders <- readRDS("./rds/strong_binder.rds")
+hla.samples <- readRDS("./rds/patient_hla.rds")
 
 mtx.pep <- sign(pep.raw[ , 4:(ncol(pep.raw) - 1)])
 rownames(mtx.pep) <- pep.raw$Protein.IDs
@@ -62,8 +64,84 @@ detection_stats$jaccard_index <- detection_stats$both_detected_freq / detection_
 detection_stats$detection_concordance <- detection_stats$both_detected_freq / 
   pmax(detection_stats$rna_detection_freq, detection_stats$pep_detection_freq)
 
+# Plotting HLA allele distribution
+draw_allele <- hla.samples %>%
+  rename(allele = Type) %>%
+  mutate(allele = gsub("N", "", allele)) %>%
+  mutate(sample = Sample)
+draw_line <- draw_allele %>%
+  group_by(Group) %>%
+  summarise(line_value = 0.1 * n(), .groups = 'drop') %>%
+  pull(line_value)
+p_allele_hist <-
+  ggplot(draw_allele, aes(x = forcats::fct_infreq(allele), fill = Group)) + 
+  facet_wrap(~Group, scales = "free") +
+  geom_bar() +
+  scale_fill_manual(values = c("#B574AE", "#F8C77A", "#6387C5")) +
+  xlab("HLA alleles") + 
+  ylab("Count") + 
+  geom_hline(yintercept = draw_line, colour = "red3") + 
+  annotate("text", x = 2, y = draw_line, label = "10%", colour = "red3") +
+  theme_bw() +
+  theme(axis.text = element_text(colour = 1),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  coord_flip()
+pdf("./outputs/allele_distribution.pdf", width = 8, height = 7)
+print(p_allele_hist)
+dev.off()
+
+# Plotting scatters
+allele_freq <- draw_allele %>%
+  group_by(allele) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count / nrow(draw_allele) * 100)
+
+total_peptides <- n_distinct(strong.binders$Peptide)
+
+peptide_binding <- strong.binders %>%
+  group_by(Allele) %>%
+  summarise(peptide_count = n_distinct(Peptide)) %>%
+  mutate(peptide_percentage = peptide_count / total_peptides * 100)
+
+allele_peptide_data <- allele_freq %>%
+  inner_join(peptide_binding, by = c("allele" = "Allele")) %>%
+  arrange(desc(peptide_percentage))
+
+rainbow_colour <- paletteer_d("khroma::smoothrainbow")
+n_allele <- length(unique(allele_peptide_data$allele))
+if (n_allele < length(rainbow_colour)) {
+  allele_colour <- rainbow_colour[seq(1, length(rainbow_colour), by = round(length(rainbow_colour)/n_allele))]
+} else {
+  all_colour <- paletteer_d("palettesForR::Named")
+  allele_colour <- all_colour[seq(1, length(all_colour), by = round(length(all_colour)/n_allele)-1)]
+}
+
+p_scatter <-
+  ggplot(allele_peptide_data, aes(x = percentage, y = peptide_percentage,
+                                  color = allele)) +
+  geom_point(size = 3, alpha = 0.7) +
+  scale_colour_manual(values = allele_colour) + 
+  ggrepel::geom_label_repel(aes(label = allele),
+                            nudge_x = 1,
+                            nudge_y = 1,
+                            alpha = .8) +
+  labs(
+    x = "HLA alleles (%)",
+    y = "Bound peptides (%)"
+  ) +
+  theme_test() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
+pdf("./outputs/scatter_allele_peptide_percentage.pdf", width = 8, height = 5)
+print(p_scatter)
+dev.off()
+
 # Plotting Jaccard index
-p1 <-
+p_jaccard <-
   ggplot(detection_stats, aes(x = rna_detection_freq, y = pep_detection_freq)) +
   geom_point(aes(size = both_detected_freq, color = jaccard_index), alpha = 0.7) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +
@@ -81,7 +159,7 @@ p1 <-
   ) +
   theme(axis.text = element_text(colour = 1))
 pdf("./outputs/detection_consistency.pdf", width = 6.2, height = 5)
-print(p1)
+print(p_jaccard)
 dev.off()
 
 # Plotting species detected consistently
@@ -104,7 +182,7 @@ detection_matrix_filtered <- detection_matrix[, valid_samples]
 
 col_fun <- c("0" = "white", "1" = "darkblue")
 
-p2 <-
+p_heat <-
   Heatmap(sign(pep_detected[high_detection_species, ]),
           name = "Detection", col = col_fun, 
           column_title = "Samples", column_title_side = "bottom",
@@ -112,7 +190,7 @@ p2 <-
           row_names_gp = gpar(fontface = "italic", fontsize = 10)
   )
 pdf("./outputs/detection_matrix.pdf", width = 6, height = 4)
-draw(p2)
+draw(p_heat)
 dev.off()
 
 # Peptide selection
