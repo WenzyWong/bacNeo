@@ -65,30 +65,29 @@ detection_stats$detection_concordance <- detection_stats$both_detected_freq /
   pmax(detection_stats$rna_detection_freq, detection_stats$pep_detection_freq)
 
 # Plotting HLA allele distribution
-draw_allele <- hla.samples %>%
+draw_allele <- hla.samples[ , c(2:ncol(hla.samples))] %>%
   rename(allele = Type) %>%
-  mutate(allele = gsub("N", "", allele)) %>%
-  mutate(sample = Sample)
-draw_line <- draw_allele %>%
-  group_by(Group) %>%
-  summarise(line_value = 0.1 * n(), .groups = 'drop') %>%
-  pull(line_value)
-p_allele_hist <-
-  ggplot(draw_allele, aes(x = forcats::fct_infreq(allele), fill = Group)) + 
+  mutate(allele = gsub("N", "", allele),
+         allele_frequency = Count / 188) %>%
+  mutate(allele_frequency = 100 * allele_frequency) %>%
+  arrange(Group, allele_frequency)
+
+draw_allele <- draw_allele[!duplicated(draw_allele$allele),]
+p_allele_distribution <-
+  ggplot(draw_allele, aes(x = allele_frequency,
+                        y = factor(allele, levels = unique(allele)), 
+                        fill = Group)) + 
   facet_wrap(~Group, scales = "free") +
-  geom_bar() +
+  geom_bar(stat = "identity") +
   scale_fill_manual(values = c("#B574AE", "#F8C77A", "#6387C5")) +
-  xlab("HLA alleles") + 
-  ylab("Count") + 
-  geom_hline(yintercept = draw_line, colour = "red3") + 
-  annotate("text", x = 2, y = draw_line, label = "10%", colour = "red3") +
+  ylab("HLA alleles") + 
+  xlab("Percentage (%)") + 
+  geom_vline(xintercept = 10, colour = "red3") + 
+  annotate("text", x = 10, y = 2, label = "10%", colour = "red3") +
   theme_bw() +
-  theme(axis.text = element_text(colour = 1),
-        axis.text.y = element_blank(),
-        axis.ticks.y = element_blank()) +
-  coord_flip()
-pdf("./outputs/allele_distribution.pdf", width = 8, height = 7)
-print(p_allele_hist)
+  theme(axis.text = element_text(colour = 1))
+pdf("./outputs/allele_distribution.pdf", width = 10, height = 7)
+print(p_allele_distribution)
 dev.off()
 
 # Plotting scatters
