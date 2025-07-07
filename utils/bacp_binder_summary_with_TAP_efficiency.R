@@ -115,14 +115,22 @@ write.csv(all_weak, paste0(OUTPUT, "/Weak_binders.csv"))
 new_strong <- calculate_tap_binding(all_strong) %>%
   arrange(TAP_logIC50, BA_Rank) %>%
   filter(TAP_logIC50 < 0) %>%
-  mutate(weight = log2(abs(1/BA_Rank * TAP_logIC50) + 1)) %>%
+  mutate(
+    TAP_percentile = 1- percent_rank(TAP_logIC50),
+    BA_percentile = 1 - percent_rank(BA_Rank),
+    weight = log2((TAP_percentile + BA_percentile)/2 + 1)
+  ) %>%
   select(icore, HLA_allele, weight)
 write.csv(new_strong, paste0(OUTPUT, "/Strong_network.csv"))
 
 new_weak <- calculate_tap_binding(all_weak) %>%
   arrange(TAP_logIC50, BA_Rank) %>%
   filter(TAP_logIC50 < 0) %>%
-  mutate(weight = log2(abs(1/BA_Rank * TAP_logIC50) + 1)) %>%
+  mutate(
+    TAP_percentile = 1 - percent_rank(TAP_logIC50),
+    BA_percentile = 1 - percent_rank(BA_Rank),
+    weight = log2((TAP_percentile + BA_percentile)/2 + 1)
+  ) %>%
   select(icore, HLA_allele, weight)
 
 write.csv(new_weak, paste0(OUTPUT, "/Weak_network.csv"))
