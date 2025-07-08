@@ -207,3 +207,40 @@ binder.sankey <- binder.sankey %>%
   mutate(Value = c(table(Source)[Source]))
 dim(binder.sankey)
 write.csv(binder.sankey, "./outputs/strong_binders_sankey.csv")
+
+# Plot chord diagram
+binder.adjacency <- binder.sankey
+colnames(binder.adjacency) <- c("from", "to", "value")
+
+node_values <- aggregate(value ~ from, data = binder.adjacency, sum)
+names(node_values) <- c("node", "total_value")
+node_values2 <- aggregate(value ~ to, data = binder.adjacency, sum)
+names(node_values2) <- c("node", "total_value")
+all_nodes <- rbind(node_values, node_values2)
+node_totals <- aggregate(total_value ~ node, data = all_nodes, sum)
+
+show_labels <- node_totals$node[node_totals$total_value > 10]
+
+set.seed(42)
+colors <- sample(rainbow(n_sectors))
+names(colors) <- all_sectors
+
+pdf("./outputs/chord_diagram.pdf", width = 10, height = 10)
+circos.par(start.degree = 180)
+chordDiagram(binder.adjacency, 
+             grid.col = colors,
+             annotationTrack = "grid",
+             annotationTrackHeight = 0.05)
+
+circos.track(track.index = 1, panel.fun = function(x, y) {
+  sector.name = get.cell.meta.data("sector.index")
+  if(sector.name %in% show_labels) {
+    circos.text(CELL_META$xcenter, CELL_META$ylim[1] + 0.2, 
+                sector.name, facing = "clockwise", 
+                niceFacing = TRUE, adj = c(0, 0.5),
+                cex = 0.8)
+  }
+}, bg.border = NA)
+
+circos.clear()
+dev.off()
