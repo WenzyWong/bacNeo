@@ -4,7 +4,7 @@
 #
 # Yunzhe Wang, yunzhewang24@m.fudan.edu.cn
 # Created: 2025-06-30
-# Updated: 2025-07-05
+# Updated: 2025-07-07
 ##########################################
 library(ggplot2)
 library(dplyr)
@@ -19,6 +19,8 @@ library(VennDiagram)
 library(reshape2)
 library(scales)
 library(forcats)
+library(readxl)
+library(paletteer)
 
 # Data preprocessing
 pep.raw <- readRDS("./rds/peptides_raw.rds")
@@ -64,6 +66,7 @@ detection_stats$jaccard_index <- detection_stats$both_detected_freq / detection_
 detection_stats$detection_concordance <- detection_stats$both_detected_freq / 
   pmax(detection_stats$rna_detection_freq, detection_stats$pep_detection_freq)
 
+##################################
 # Plotting HLA allele distribution
 draw_allele <- hla.samples[ , c(2:ncol(hla.samples))] %>%
   rename(allele = Type) %>%
@@ -90,6 +93,7 @@ pdf("./outputs/allele_distribution.pdf", width = 10, height = 7)
 print(p_allele_distribution)
 dev.off()
 
+###################
 # Plotting scatters
 allele_freq <- draw_allele %>%
   group_by(allele) %>%
@@ -139,6 +143,7 @@ pdf("./outputs/scatter_allele_peptide_percentage.pdf", width = 8, height = 5)
 print(p_scatter)
 dev.off()
 
+########################
 # Plotting Jaccard index
 p_jaccard <-
   ggplot(detection_stats, aes(x = rna_detection_freq, y = pep_detection_freq)) +
@@ -161,6 +166,7 @@ pdf("./outputs/detection_consistency.pdf", width = 6.2, height = 5)
 print(p_jaccard)
 dev.off()
 
+########################################
 # Plotting species detected consistently
 high_detection_species <- detection_stats$species[
   detection_stats$rna_detection_freq > 0.2 & detection_stats$pep_detection_freq > 0.2
@@ -192,6 +198,7 @@ pdf("./outputs/detection_matrix.pdf", width = 6, height = 4)
 draw(p_heat)
 dev.off()
 
+####################
 # Peptide selection
 strong.binders <- strong.binders %>%
   arrange(BArank) %>%
@@ -208,6 +215,7 @@ binder.sankey <- binder.sankey %>%
 dim(binder.sankey)
 write.csv(binder.sankey, "./outputs/strong_binders_sankey.csv")
 
+####################
 # Plot chord diagram
 binder.adjacency <- binder.sankey
 colnames(binder.adjacency) <- c("from", "to", "value")
@@ -219,23 +227,58 @@ names(node_values2) <- c("node", "total_value")
 all_nodes <- rbind(node_values, node_values2)
 node_totals <- aggregate(total_value ~ node, data = all_nodes, sum)
 
-show_labels <- node_totals$node[node_totals$total_value > 10]
+show_labels <- node_totals$node[node_totals$total_value > 20]
+
+# Assigning groups to sections
+all_sectors <- unique(c(binder.adjacency$from, binder.adjacency$to))
+n_sectors <- length(all_sectors)
+
+sector_groups <- rep(NA, length(all_sectors))
+names(sector_groups) <- all_sectors
+
+for(sector in all_sectors) {
+  if(sector %in% strong.binders$Allele) {
+    sector_groups[sector] <- "Allele"
+  } else if(sector %in% strong.binders$Peptide) {
+    sector_groups[sector] <- "Peptide"
+  } else if(sector %in% strong.binders$ProteinID) {
+    sector_groups[sector] <- "ProteinID"
+  } else if(sector %in% strong.binders$Species) {
+    sector_groups[sector] <- "Species"
+  }
+}
+
+# Adding group annotation info
+group_colors <- c("Allele" = "#00A1D5FF", "Peptide" = "#6A6599FF", 
+                  "ProteinID" = "#79AF97FF", "Species" = "#DF8F44FF")
 
 set.seed(42)
 colors <- sample(rainbow(n_sectors))
 names(colors) <- all_sectors
 
-pdf("./outputs/chord_diagram.pdf", width = 10, height = 10)
+pdf("./outputs/chord_diagram.pdf", width = 5, height = 5)
 circos.par(start.degree = 180)
 chordDiagram(binder.adjacency, 
              grid.col = colors,
              annotationTrack = "grid",
              annotationTrackHeight = 0.05)
 
+# Adding group tracks
 circos.track(track.index = 1, panel.fun = function(x, y) {
   sector.name = get.cell.meta.data("sector.index")
+  group = sector_groups[sector.name]
+  
+  if(!is.na(group)) {
+    circos.rect(CELL_META$xlim[1], CELL_META$ylim[1], 
+                CELL_META$xlim[2], CELL_META$ylim[2], 
+                col = group_colors[group], border = NA)
+  }
+}, bg.border = NA)
+
+circos.track(track.index = 2, ylim = c(0, 1), panel.fun = function(x, y) {
+  sector.name = get.cell.meta.data("sector.index")
   if(sector.name %in% show_labels) {
-    circos.text(CELL_META$xcenter, CELL_META$ylim[1] + 0.2, 
+    circos.text(CELL_META$xcenter, CELL_META$ylim[1] + 1.5, 
                 sector.name, facing = "clockwise", 
                 niceFacing = TRUE, adj = c(0, 0.5),
                 cex = 0.8)
