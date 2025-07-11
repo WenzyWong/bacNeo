@@ -765,10 +765,16 @@ run_bacp() {
     echo -e "\033[46;37m >> STEP 0: Extracting HLA alleles... \033[0m"
     mkdir -p "${PARAMS[OUT]}/00_allele_summary"
 
-    for SAMPLE_PATH in "${PARAMS[ALLELE_DIR]}"/*; do
-        SAMPLE=$(basename "${SAMPLE_PATH}")
-        # shellcheck disable=SC2016
-        find "${PARAMS[ALLELE_DIR]}/${SAMPLE}" -name "HLA-*.txt" -print0 | xargs awk '/HLA gene/ {split($0,a,": "); gene=a[2]} /Type [12]/ {split($3,b,":"); result=gene b[1]":"b[2]; gsub(/N/, "", result); print result}' > "${PARAMS[OUT]}/00_allele_summary/${SAMPLE}.txt"
+    for SAMPLE_PATH in "${ALLELE_DIR}"/*; do
+    SAMPLE=$(basename "${SAMPLE_PATH}")
+        > "${OUT}/00_allele_summary/${SAMPLE}.txt"
+        for hla_file in "${ALLELE_DIR}/${SAMPLE}"/HLA-*.txt; do
+            if [[ -f "$hla_file" ]]; then
+                awk '/HLA gene/ {split($0,a,": "); gene=a[2]} 
+                    /Type [12]/ {split($3,b,":"); result=gene b[1]":"b[2]; gsub(/N/, "", result); print result}' \
+                    "$hla_file" >> "${OUT}/00_allele_summary/${SAMPLE}.txt"
+            fi
+        done
     done
     echo -e "Plotting the distribution of HLA alleles among samples into ${PARAMS[OUT]}/00_allele_summary/Bar_distribution_alleles.pdf"
     Rscript "${GLOBAL_CONFIG[BACNEO]}/utils/bacp_allele_visualization.R" "${PARAMS[OUT]}/00_allele_summary"
