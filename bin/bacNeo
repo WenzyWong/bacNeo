@@ -1363,15 +1363,24 @@ run_bacp() {
             echo -e "====================================================================="
             echo -e "Processing sample ${SAMPLE}: Removing duplicates in fasta files of bacterial peptides..."
             
-            awk '/^>/ {header=$0; getline seq; if (header !~ /rbs_motif=None/ && header !~ /start_type=Edge/ && header ~ /partial=00/) print seq}' \
-                "${PARAMS[OUT]}/02_predicted_protein/${SAMPLE}/protein_files/${SAMPLE}_bacreads.faa" > "${PARAMS[OUT]}/02_predicted_protein/${SAMPLE}/protein_files/${SAMPLE}_filtered.faa"
-
+            FILTERED_PEP="${PARAMS[OUT]}/02_predicted_protein/${SAMPLE}/protein_files/${SAMPLE}_filtered.faa"
+            CHECKM2_TRANLATION="${OUT}/02_predicted_protein/${SAMPLE}/protein_files/${SAMPLE}_bacreads.faa"
+            awk '
+                /^>/ {
+                    header=$0
+                    getline seq
+                    if (header ~ /partial=00/ && header !~ /rbs_motif=None/ && header !~ /start_type=Edge/) {
+                        print header
+                        print seq
+                    }
+                }
+                ' "${CHECKM2_TRANLATION}" > "${FILTERED_PEP}"
             OUT_CDHIT="${PARAMS[OUT]}/03_amino_acid_processing/${SAMPLE}_bacpep_cdhit.fa"         
-            cd-hit -i "${PARAMS[OUT]}/02_predicted_protein/${SAMPLE}/protein_files/${SAMPLE}_filtered.faa" \
+            cd-hit -i "${FILTERED_PEP}" \
                 -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > /dev/null 2>&1
-            echo -e "Processing sample ${SAMPLE}: Removing bacterial peptide sequences without start codon and ribosome binding sites..."
-            grep -v "^>" "${OUT_CDHIT}" > "${INPUT_PEP}"
+            echo -e "Processing sample ${SAMPLE}: Removing incomplete bacterial peptide sequences without start codon and ribosome binding sites..."
             INPUT_PEP="${PARAMS[OUT]}/03_amino_acid_processing/${SAMPLE}_bacpep.txt"
+            grep -v "^>" "${OUT_CDHIT}" | sed 's/\*//' > "${INPUT_PEP}"
             echo -e "Processing sample ${SAMPLE}: Predicting potential neoantigens..."
             process_peptides "${SAMPLE}" "${INPUT_PEP}" "${PARAMS[OUT]}" "${PARAMS[THREADS]}"
         done
