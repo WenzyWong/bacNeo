@@ -12,7 +12,7 @@ The steps for processing sequencing data are modular and independent. Therefore,
 
 To successfully call the commends, please add the directory path of this tool to your environment `PATH`.
 
-> [!Important]
+> [!IMPORTANT]
 > Please refer to user manual in [`doc/Manual.md`](doc/Manual.md) for detailed guidance.
 
 ## Installation
@@ -51,7 +51,8 @@ bacNeo -h
 
 The majority of the codes were written in `bash shell`. The developed version of `bash` was 5.1.16. Make sure the `bash` version in your machine is newer than version 5.0. You can use `echo $BASH_VERSION` to check the version.
 
-If the default `/bin/bash` doesn't meet our requirement and updating the `bash` version may harm your environment, you could also replace `#!/bin/bash` to `#!/${PATH_OF_YOUR_BACNEO_ANACONDA_ENVS}/bin/bash` in `./bin/bacNeo`.
+> [!TIP]
+> If the default `/bin/bash` doesn't meet our requirement and updating the `bash` version may harm your environment, you could replace `#!/bin/bash` to `#!/${PATH_OF_YOUR_BACNEO_ANACONDA_ENVS}/bin/bash` in `./bin/bacNeo`.
 
 ### `tcsh` Version
 
@@ -59,7 +60,12 @@ Running BACP is dependent on netMHCpan, which is written in `tcsh`. The develope
 
 ### netMHCpan-4.1
 
-As `bacNeo --bacp` uses [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/), a lisenced software which requires manually application, you need to manually install it. Open the link above, click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacNeo --bacp`.
+As `bacNeo --bacp` uses [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/), a lisenced software which requires manually application, you need to manually install it. 
+
+Open the link above, click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacNeo --bacp`.
+
+> [!TIP]
+> Makesure that netMHCpan is in your `PATH`.
 
 ## Datasets
 
