@@ -49,10 +49,17 @@ bacNeo -h
 
 ### `bash` Version
 
-The majority of the codes were written in `bash shell`. The developed version of `bash` was 5.1.16. Make sure the `bash` version in your machine is newer than version 5.0. You can use `echo $BASH_VERSION` to check the version.
+The majority of the codes were written in `bash shell`. The developed version of `bash` was 5.1.16. Make sure the `bash` version in your machine is newer than version 5.0. You can use check your version via:
+
+```shell
+echo $BASH_VERSION
+```
 
 > [!TIP]
-> If the default `/bin/bash` doesn't meet our requirement and updating the `bash` version may harm your environment, you could replace `#!/bin/bash` to `#!/${PATH_OF_YOUR_BACNEO_ANACONDA_ENVS}/bin/bash` in `./bin/bacNeo`.
+> If the default version doesn't meet our requirement and updating the `bash` version may harm your environment:
+> * Run `conda env list` to find out the path for your bacNeo environment.
+> * In the header of `./bin/bacNeo`: replace `#!/bin/bash` with `#!/${PATH_OF_YOUR_BACNEO_ANACONDA_ENVS}/bin/bash`.
+> * We have added `bash`-v5 in our config file, so you can simply call the required version inside this environment.
 
 ### `tcsh` Version
 
