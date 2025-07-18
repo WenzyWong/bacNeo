@@ -12,7 +12,7 @@ The steps for processing sequencing data are modular and independent. Therefore,
 
 To successfully call the commends, please add the directory path of this tool to your environment `PATH`.
 
-> [!User manual]
+> [!Important]
 > Please refer to user manual in [`doc/Manual.md`](doc/Manual.md) for detailed guidance.
 
 ## Installation
