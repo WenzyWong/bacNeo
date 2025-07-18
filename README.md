@@ -4,17 +4,16 @@
 
 ![BioDraft](doc/BioDraft.png)
 
-The tool **bacNeo** aims to identify potential intratumour bacteria-derived neoantigens.
+The tool **bacNeo** aims to predict intratumour bacteria-derived neoantigens.
 
-To accomplish the whole antigen-discovery processes, **bacNeo** requires raw genome, transcriptome, and / or proteome data sets.
+**bacNeo** support multiple omics data, including genomics, transcriptomics, and proteomics. With one type of sequencing data (genomics or transcriptomics), it is sufficient to accomplish the whole antigen-discovery processes. Proteomics data is optional, but can greatly enhance its accuracy.
 
 The steps for processing sequencing data are modular and independent. Therefore, you could use `bacNeo --bacc` and `bacNeo --bach` commands, as well as other scripts in `./utils` independently to meet your specific needs.
 
 To successfully call the commends, please add the directory path of this tool to your environment `PATH`.
 
-## User manual
-
-Please refer to user manual in [`doc/Manual.md`](doc/Manual.md) for detailed guidance.
+> [!User manual]
+> Please refer to user manual in [`doc/Manual.md`](doc/Manual.md) for detailed guidance.
 
 ## Installation
 
