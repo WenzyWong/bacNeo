@@ -33,9 +33,10 @@ while getopts ":s:r:1:2:o:t:h" opt; do
     esac
 done
 
-fq1_new="${output_dir}/${PARAMS[SAMPLE]}_removed_R1.fastq"
-fq2_new="${output_dir}/${PARAMS[SAMPLE]}_removed_R2.fastq"
+fq1_new="${PARAMS[OUT]}/${PARAMS[SAMPLE]}_removed_R1.fastq"
+fq2_new="${PARAMS[OUT]}/${PARAMS[SAMPLE]}_removed_R2.fastq"
 
+echo -e "Extracting barcodes from fastq files..."
 awk '
 {
     if (NR % 4 == 1) {
