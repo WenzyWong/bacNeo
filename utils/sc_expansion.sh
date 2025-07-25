@@ -44,7 +44,14 @@ awk '
         sequence = $0
         prefix = substr(sequence, 1, 16)
         remaining = substr(sequence, 17)
-        print header "." prefix
+
+        if (match(header, /^@[^ ]*/)) {
+            read_id = substr(header, 1, RLENGTH)
+            rest_header = substr(header, RLENGTH + 1)
+            # 重新组合header: @read_id.prefix rest_header
+            new_header = read_id "." prefix rest_header
+        }
+        print new_header
         print remaining
     } else if (NR % 4 == 3) {
         print $0
@@ -63,7 +70,13 @@ awk '
         sequence = $0
         prefix = substr(sequence, 1, 16)
         remaining = substr(sequence, 17)
-        print header "." prefix
+
+        if (match(header, /^@[^ ]*/)) {
+            read_id = substr(header, 1, RLENGTH)
+            rest_header = substr(header, RLENGTH + 1)
+            new_header = read_id "." prefix rest_header
+        }
+        print new_header
         print remaining
     } else if (NR % 4 == 3) {
         print $0
