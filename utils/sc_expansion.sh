@@ -48,7 +48,6 @@ awk '
         if (match(header, /^@[^ ]*/)) {
             read_id = substr(header, 1, RLENGTH)
             rest_header = substr(header, RLENGTH + 1)
-            # 重新组合header: @read_id.prefix rest_header
             new_header = read_id "." prefix rest_header
         }
         print new_header
