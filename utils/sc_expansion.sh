@@ -90,4 +90,4 @@ awk '
     }
 }' "${PARAMS[FQ2]}" > "${fq2_new}"
 
-bacNeo --bacc -1 "${fq1_new}" -2 "${fq2_new}" -m RNA -r "${PARAMS[REF]}" -o "${out_bacc}" -l f -l g -t "${PARAMS[THREADS]}"
+bacNeo --bacc -1 "${fq1_new}" -2 "${fq2_new}" -m RNA -r "${PARAMS[REF]}" -o "${out_bacc}" -l g -t "${PARAMS[THREADS]}"
