@@ -33,8 +33,11 @@ while getopts ":s:r:1:2:o:t:h" opt; do
     esac
 done
 
-fq1_new="${PARAMS[OUT]}/${PARAMS[SAMPLE]}_removed_R1.fastq"
-fq2_new="${PARAMS[OUT]}/${PARAMS[SAMPLE]}_removed_R2.fastq"
+out_bacc="${PARAMS[OUT]}/${PARAMS[SAMPLE]}"
+mkdir -p "${out_bacc}"
+
+fq1_new="${out_bacc}/${PARAMS[SAMPLE]}_removed_R1.fastq"
+fq2_new="${out_bacc}/${PARAMS[SAMPLE]}_removed_R2.fastq"
 
 echo -e "Extracting barcodes from fastq files..."
 awk '
@@ -87,6 +90,4 @@ awk '
     }
 }' "${PARAMS[FQ2]}" > "${fq2_new}"
 
-out_bacc="${PARAMS[OUT]}/${PARAMS[SAMPLE]}"
-mkdir -p "${out_bacc}"
 bacNeo --bacc -1 "${fq1_new}" -2 "${fq2_new}" -m RNA -r "${PARAMS[REF]}" -o "${out_bacc}" -l f -l g -t "${PARAMS[THREADS]}"
