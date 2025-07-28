@@ -14,6 +14,7 @@ To successfully call the commends, please add the directory path of this tool to
 
 > [!IMPORTANT]
 > Please refer to user manual in [`doc/Manual.md`](doc/Manual.md) for detailed guidance.
+> Check for the preprint article for detailed information [bioRxiv](https://www.biorxiv.org/content/10.1101/2025.07.23.666275v1).
 
 ## Installation
 
@@ -67,7 +68,7 @@ Running BACP is dependent on netMHCpan, which is written in `tcsh`. The develope
 
 ### netMHCpan-4.1
 
-As `bacNeo --bacp` uses [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/), a lisenced software which requires manually application, you need to manually install it. 
+As `bacNeo --bacp` uses [netMHCpan-4.1](https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/), a lisenced software which requires manually application, you need to manually install it.
 
 Open the link above, click `Downloads`, and choose `Version 4.1b` - `Linux`. After filling in and submitting the form, you could download and install it to successfully run `bacNeo --bacp`.
 
