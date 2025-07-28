@@ -13,8 +13,8 @@ The steps for processing sequencing data are modular and independent. Therefore,
 To successfully call the commends, please add the directory path of this tool to your environment `PATH`.
 
 > [!IMPORTANT]
-> Please refer to user manual in [`doc/Manual.md`](doc/Manual.md) for detailed guidance.
-> Check for the preprint article for detailed information [bioRxiv](https://www.biorxiv.org/content/10.1101/2025.07.23.666275v1).
+> * Please refer to user manual in [`doc/Manual.md`](doc/Manual.md) for detailed guidance.
+> * Check for the [bioRxiv preprint article](https://www.biorxiv.org/content/10.1101/2025.07.23.666275v1) for detailed description.
 
 ## Installation
 
