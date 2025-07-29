@@ -83,7 +83,9 @@ If you would like to download the pre-constructed reference databases, pleas put
 
 ### Test data
 
-We used the raw WES data from BioProject (accession: [PRJNA1253793](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1253793) - SRR33242434, SRR33242436, and SRR33242438). The accession list is in `test/SRR_Acc_List`.
+- WES: We used the raw WES data from BioProject (accession: [PRJNA1253793](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1253793) - SRR33242434, SRR33242436, and SRR33242438). The accession list is in `test/SRR_Acc_List`.
+
+- scRNA-seq: We used the raw and processed scRNA-seq data from GEO (accession: [GSE281274](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE281274)). The utility script for scRNA-seq analysis is in `utils/sc_expansion.sh`.
 
 ### Script and data for regenerating outputs
 
