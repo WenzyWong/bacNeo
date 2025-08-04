@@ -46,20 +46,36 @@ for (i in 1:length(kk.files)) {
   if (i == 1) {kk.out <- tmp.out} else {kk.out <- rbind(kk.out, tmp.out)}
 }
 
+# Extract total reads (root taxid == 1)
+cell.reads <- kk.out %>%
+  filter(V3 == "1") %>%
+  group_by(row) %>%
+  summarise(total_reads = n(), .groups = "drop")
+
 # Extract bacteria (ncbi taxid == 2)
 bac.all <- kk.out %>%
   filter(V3 == "2")
 dim(bac.all)
 bac.all.ct <- bac.all %>%
   group_by(row) %>%
-  summarise(total_count = n(), .groups = "drop")
+  summarise(bac_count = n(), .groups = "drop")
 dim(bac.all.ct)
 
-match_indices <- match(rownames(filt.norm@meta.data), bac.all.ct$row)
+reads.data <- merge(cell.reads, bac.all.ct, by = "row", all.x = TRUE)
+reads.data$bac_count[is.na(reads.data$bac_count)] <- 0
+reads.data$bac_cpm <- (reads.data$bac_count / reads.data$total_reads) * 1000000
+
+match_indices <- match(rownames(filt.norm@meta.data), reads.data$row)
 length(match_indices)
 
-filt.norm@meta.data$bac_all <- ifelse(
-  is.na(match_indices), 0, log10(bac.all.ct$total_count[match_indices])
+filt.norm@meta.data$bac_cpm <- ifelse(
+  is.na(match_indices), 0, reads.data$bac_cpm[match_indices]
 )
-FeaturePlot(filt.norm, reduction = "tsne", features = c("bac_all")) +
+filt.norm@meta.data$bac_cpm_log10 <- ifelse(
+  filt.norm@meta.data$bac_cpm == 0,
+  0,
+  log10(filt.norm@meta.data$bac_cpm + 1)
+)
+
+FeaturePlot(filt.norm, reduction = "tsne", features = c("bac_cpm_log10")) +
   scale_colour_distiller(palette = "Blues", direction = 0)
