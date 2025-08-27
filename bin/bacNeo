@@ -1325,7 +1325,7 @@ run_bacp() {
             </fastaFilesProteogenomics>
             <fastaFilesFirstSearch>
             </fastaFilesFirstSearch>
-            <fixedSearchFolder>/scratch/chen.alb/asdf/andromeda_index</fixedSearchFolder>
+            <fixedSearchFolder></fixedSearchFolder>
             <andromedaCacheSize>350000</andromedaCacheSize>
             <advancedRatios>True</advancedRatios>
             <pvalThres>0.005</pvalThres>
@@ -1454,18 +1454,14 @@ run_bacp() {
             </experiments>
             <fractions>
                 <short>32767</short>
-                <short>32767</short>
             </fractions>
             <ptms>
-                <boolean>False</boolean>
                 <boolean>False</boolean>
             </ptms>
             <paramGroupIndices>
                 <int>0</int>
-                <int>0</int>
             </paramGroupIndices>
             <commonChannel>
-                <string></string>
                 <string></string>
             </commonChannel>
             <parameterGroups>
@@ -1491,7 +1487,6 @@ run_bacp() {
                     <intensityThreshold>0</intensityThreshold>
                     <labelMods>
                         <string></string>
-                        <string>Arg10;Lys8</string>
                     </labelMods>
                     <lcmsRunType>Standard</lcmsRunType>
                     <reQuantify>False</reQuantify>
