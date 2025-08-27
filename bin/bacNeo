@@ -3,11 +3,11 @@ declare -A GLOBAL_CONFIG
 
 init_global_config() {
     GLOBAL_CONFIG["THREADS"]=16
-    
+
     local bacneo_paths
     bacneo_paths=$(echo -e "${PATH}" | tr ':' '\n' | grep 'bacNeo' | uniq | xargs dirname)
     local bacneo_found=false
-    
+
     while read -r tmp_path; do
         if [ -f "${tmp_path}/bacNeo.yml" ] && [ -d "${tmp_path}/bin" ]; then
             GLOBAL_CONFIG["BACNEO"]="${tmp_path}"
@@ -15,19 +15,19 @@ init_global_config() {
             break
         fi
     done <<< "${bacneo_paths}"
-    
+
     if ! ${bacneo_found}; then
         echo -e "Error: The bacNeo path with the correct file structure was not found!" >&2
         return 1
     fi
-    
+
     GLOBAL_CONFIG["DB"]="${GLOBAL_CONFIG["BACNEO"]}/reference"
-    
+
     if [ ! -d "${GLOBAL_CONFIG["DB"]}" ]; then
         echo -e "Error: Reference directory not found: ${GLOBAL_CONFIG["DB"]}" >&2
         return 1
     fi
-    
+
     echo -e "bacNeo path found in: ${GLOBAL_CONFIG["BACNEO"]}"
     echo -e "Reference directory: ${GLOBAL_CONFIG["DB"]}"
     return 0
@@ -41,23 +41,23 @@ exit_abnormal() {
 print_logo() {
   echo -e "\e[36m"
   echo -e '
-               _                 _   _            
-              | |               | \ | |           
-              | |__   __ _  ___ |  \| | ___  ___  
-              | `_ \ / _` |/ __|| . ` |/ _ \/ _ \ 
+               _                 _   _
+              | |               | \ | |
+              | |__   __ _  ___ |  \| | ___  ___
+              | `_ \ / _` |/ __|| . ` |/ _ \/ _ \
               | |_) | (_| | (__ | |\  |  __/ (_) |
               |____/ \__,_|\___||_| \_|\___|\___/
   '
   echo -e "\e[0m"
 }
-usage() {    
+usage() {
     print_logo
     echo -e "
-    
+
     Thank you for downloading bacNeo!
-    
+
     The tool is developped for predicting bacteria-derived neoantigens, more detailed tutorial is available in doc/Manual.md
-    
+
     bacNeo contains five modules, please check the usage down below
 
     Usage:
@@ -97,7 +97,7 @@ usage() {
         -d, --dir           Directory path for matrix extraction
         -l, --level         Taxonomic level(s) for calculation
         -n, --norm          Normalization methods, including 'raw_count', 'CPM', and 'abundance'
-        
+
     Notes: Make sure that you have already run BACC to extract bacterial reads in all samples
 
     --- Module 3 - Run bach
@@ -128,7 +128,7 @@ usage() {
 
         --bacp              Predict bacterial neoantigens
         -p                  Flag for proteome data analysis, input this parameter only when you have proteome dataset
-        -i                  Directory containing MS data in '.d' format (-p)
+        -i                  Directory containing MS data in '.d' / '.raw' format (-p)
                             or
                             Directory containing bacc output (non -p)
         -r                  [Only required when '-p' is input]
@@ -144,24 +144,24 @@ usage() {
     4. For multiple samples, you could input them all at once, based on the directory path of 'bacNeo --bach' and / or 'bacNeo --bacc' output
 
     -h, --help                      Show this help message
-    " 1>&2 
+    " 1>&2
 }
 # Parameter validation functions
 validate_bacc_params() {
     local -n params=$1
     local -n tax_levels=$2
     local errors=()
-    
+
     [[ -z "${params[FQ1]}" ]] && errors+=("Missing required parameter: -1 (R1 fastq)")
     [[ -z "${params[FQ2]}" ]] && errors+=("Missing required parameter: -2 (R2 fastq)")
     [[ -z "${params[OMICS]}" ]] && errors+=("Missing required parameter: -m (omics type)")
     [[ -z "${params[REF]}" ]] && errors+=("Missing required parameter: -r (reference)")
     [[ -z "${params[OUT]}" ]] && errors+=("Missing required parameter: -o (output directory)")
-    
+
     if [[ -n "${params[OMICS]}" && ! "${params[OMICS]}" =~ ^(RNA|WGS|WES)$ ]]; then
         errors+=("Invalid omics type: ${params[OMICS]}. Must be RNA, WGS, or WES")
     fi
-    
+
     if [ ${#tax_levels[@]} -eq 0 ]; then
         errors+=("At least one taxonomy level (-l) must be specified")
     else
@@ -179,11 +179,11 @@ validate_bacc_params() {
             fi
         done
     fi
-    
+
     if [[ -n "${params[OUT]}" ]]; then
         mkdir -p "${params[OUT]}"
     fi
-    
+
     if ((${#errors[@]} > 0)); then
         printf '%s\n' "${errors[@]}"
         return 1
@@ -195,10 +195,10 @@ validate_matrix_params() {
     local -n params=$1
     local -n tax_levels=$2
     local errors=()
-    
+
     [[ -z "${params[BACC_OUT_DIR]}" ]] && errors+=("Missing required parameter: -d (directory path of bacc output)")
     [[ -z "${params[NORM]}" ]] && errors+=("Missing required parameter: -n (nomalization method)")
-    
+
     if [ ${#tax_levels[@]} -eq 0 ]; then
         errors+=("At least one taxonomy level (-l) must be specified")
     else
@@ -233,37 +233,37 @@ validate_bach_params() {
     local -n params=$1
     local -n genes=$2
     local errors=()
-    
+
     # Required parameters for both workflows
     [[ -z "${params[OUT]}" ]] && errors+=("Missing required parameter: -o (output path)")
-    
+
     # Workflow detection and validation
     local using_bam=false
     local using_alignment=false
-    
+
     if [[ -n "${params[BACC_PATH]}" ]]; then
         using_bam=true
         [[ ! -d "${params[BACC_PATH]}" ]] && errors+=("BAM directory not found: ${params[BACC_PATH]}")
     fi
-    
+
     if [[ -n "${params[FQ1]}" ]] || [[ -n "${params[FQ2]}" ]] || [[ -n "${params[REF]}" ]]; then
         using_alignment=true
         [[ -z "${params[FQ1]}" ]] && errors+=("Missing required parameter for alignment workflow: -1 (R1 fastq)")
         [[ -z "${params[FQ2]}" ]] && errors+=("Missing required parameter for alignment workflow: -2 (R2 fastq)")
         [[ -z "${params[REF]}" ]] && errors+=("Missing required parameter for alignment workflow: -r (reference file)")
     fi
-    
+
     if ! ${using_bam} && ! ${using_alignment}; then
         errors+=("Must specify either alignment workflow (-1, -2, -r) or pre-processed BAM workflow (-c)")
     elif ${using_bam} && ${using_alignment}; then
         errors+=("Cannot use both alignment and pre-processed BAM workflows simultaneously")
     fi
-    
+
     # Validate HLA genes
     local valid_genes=(
-        "HLA-A" "HLA-B" "HLA-C" "HLA-E" "HLA-F" "HLA-G" 
-        "MICA" "MICB" "HLA-DMA" "HLA-DMB" "HLA-DOA" "HLA-DOB" 
-        "HLA-DPA1" "HLA-DPB1" "HLA-DQA1" "HLA-DQB1" "HLA-DRA" 
+        "HLA-A" "HLA-B" "HLA-C" "HLA-E" "HLA-F" "HLA-G"
+        "MICA" "MICB" "HLA-DMA" "HLA-DMB" "HLA-DOA" "HLA-DOB"
+        "HLA-DPA1" "HLA-DPB1" "HLA-DQA1" "HLA-DQB1" "HLA-DRA"
         "HLA-DRB1" "HLA-DRB5" "TAP1" "TAP2"
     )
     for gene in "${genes[@]}"; do
@@ -278,12 +278,12 @@ validate_bach_params() {
             errors+=("Invalid HLA gene: ${gene}. Must be one of: ${valid_genes[*]}")
         fi
     done
-    
+
     # Create output directory if it doesn't exist
     if [[ -n "${params[OUT]}" ]]; then
         mkdir -p "${params[OUT]}"
     fi
-    
+
     if ((${#errors[@]} > 0)); then
         printf '%s\n' "${errors[@]}"
         return 1
@@ -293,27 +293,29 @@ validate_bach_params() {
 validate_bacp_params() {
     local -n params=$1
     local errors=()
-    
+
     [[ -z "${params[INPUT_DIR]}" ]] && errors+=("Missing required parameter: -i (input directory)")
     [[ -z "${params[ALLELE_DIR]}" ]] && errors+=("Missing required parameter: -a (allele directory)")
     [[ -z "${params[OUT]}" ]] && errors+=("Missing required parameter: -o (output directory)")
-    
+
     local is_proteome=false
     [[ "${params[PROTEOME_FLAG]}" == true ]] && is_proteome=true
-    
+
     # Exclusive file check
     if ${is_proteome}; then
         # Proteome workflow validation
         [[ -z "${params[REF_DIR]}" ]] && errors+=("Proteome workflow requires -r (reference proteome directory)")
-        
+
         if [[ -d "${params[INPUT_DIR]}" ]]; then
-            local d_files_count
+            local d_files_count raw_files_count
             d_files_count=$(find "${params[INPUT_DIR]}" -maxdepth 1 -name "*.d" -type d | wc -l)
-            if (( d_files_count == 0 )); then
-                errors+=("No .d format files found in MS data directory: ${params[INPUT_DIR]}")
+            raw_files_count=$(find "${params[INPUT_DIR]}" -maxdepth 1 -name "*.raw" -type f | wc -l)
+
+            if (( d_files_count == 0 && raw_files_count == 0 )); then
+                errors+=("No .d or .raw format files found in MS data directory: ${params[INPUT_DIR]}")
             fi
         fi
-        
+
         if [[ -d "${params[REF_DIR]}" ]]; then
             local non_fasta_count
             non_fasta_count=$(find "${params[REF_DIR]}" -maxdepth 1 -type f ! -name "*.fasta" ! -name "*.fa" | wc -l)
@@ -325,11 +327,11 @@ validate_bacp_params() {
         # Non-proteome workflow validation
         [[ -n "${params[REF_DIR]}" ]] && errors+=("Reference proteome directory (-r) should not be specified for non-proteome workflow")
     fi
-    
+
     if [[ -n "${params[OUT]}" ]]; then
         mkdir -p "${params[OUT]}"
     fi
-    
+
     if ((${#errors[@]} > 0)); then
         printf '%s\n' "${errors[@]}"
         return 1
@@ -347,7 +349,7 @@ process_sequence() {
     local step_size=3
     local seq_length=${#sequence}
     local max_start=$((seq_length - window_size))
-    
+
     for ((i=0; i<=max_start; i+=step_size)); do
         echo -e "${sequence:$i:$window_size}"
     done
@@ -375,7 +377,7 @@ process_peptides() {
         [ -z "${line}" ] && continue
         process_sequence "${line}" >> "${TMP_WINDOW}"
     done < "${INPUT_PEP}"
-    
+
     awk 'length($0) >= 5' "${TMP_WINDOW}" > "${OUT_WINDOW}"
     rm "${TMP_WINDOW}"
     echo -e "Window sliding completed. Output saved to: ${OUT_WINDOW}"
@@ -393,7 +395,7 @@ process_peptides() {
     # Step 3: Get unique HLA alleles to avoid duplicate processing
     local UNIQUE_ALLELES_FILE="${TMP_DIR}/unique_alleles.txt"
     sort "${OUTPUT}/00_allele_summary/${SAMPLE}.txt" | uniq > "${UNIQUE_ALLELES_FILE}"
-    
+
     echo -e "Unique HLA alleles for ${SAMPLE}:"
     cat "${UNIQUE_ALLELES_FILE}"
 
@@ -402,7 +404,7 @@ process_peptides() {
     while read -r TYPE; do
         echo -e "---------------------------------------------------------------------"
         echo -e "Predicting HLA-peptide affinity for ${SAMPLE} - HLA allele ${TYPE}..."
-        
+
         # Process all split files for this HLA type in parallel
         for split_file in "${TMP_DIR}"/split_*; do
             (
@@ -412,14 +414,14 @@ process_peptides() {
                 OUT_NETMHC="${OUTPUT}/04_affinity_with_HLAs/${SAMPLE}/${SAMPLE}_${SAFE_TYPE}_$(basename "${split_file}").xls"
                 netMHCpan -p "${split_file}" -BA -xls -a "${TYPE}" -xlsfile "${OUT_NETMHC}" > /dev/null
             ) &
-            
+
             # Control number of concurrent jobs
             while [ "$(jobs -r | wc -l)" -ge "${THREADS}" ]; do
                 sleep 1
             done
         done
         wait
-        
+
         # Step 5: Combine results from all threads for this HLA type
         echo "---------------------------------------------------------------------"
         echo "Combining multi-threads results for HLA allele ${TYPE}..."
@@ -435,7 +437,7 @@ process_peptides() {
             mkdir -p "$(dirname "${OUTPUT_FILE}")"
             # Copy header from first file
             head -n 1 "${FIRST_RESULT}" > "${OUTPUT_FILE}"
-            
+
             # Append data from all split files
             for result in ${PATTERN}; do
                 if [ -f "${result}" ]; then
@@ -475,9 +477,9 @@ run_bacc() {
     declare -A PARAMS
     PARAMS["THREADS"]="${GLOBAL_CONFIG[THREADS]}"
     declare -a TAXONOMY_LEVELS
-    
+
     OPTIND=1
-    
+
     while getopts ":1:2:m:r:o:t:l:" opt; do
         case ${opt} in
             1) PARAMS[FQ1]="${OPTARG}" ;;
@@ -559,7 +561,7 @@ run_bacc() {
         --output "${PARAMS[OUT]}/${SAMPLE}.KRAKEN" \
         --report "${PARAMS[OUT]}/${SAMPLE}.standard"
     echo -e "Report in standard-style saved at: ${PARAMS[OUT]}/${SAMPLE}.standard"
-    
+
     # Validate taxonomy levels
     valid_levels=("d" "p" "c" "o" "f" "g" "s")
     for TAXONOMY in "${TAXONOMY_LEVELS[@]}"; do
@@ -574,7 +576,7 @@ run_bacc() {
             echo "ERROR: ${TAXONOMY} is not a valid taxonomy level!"
             exit 1
         fi
-        
+
         echo -e "\033[46;37m >> STEP 5: Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
         python "${GLOBAL_CONFIG[BACNEO]}/utils/bacc_extract.py" -p "${PARAMS[OUT]}" -s "${SAMPLE}" -l "${TAXONOMY}"
         Rscript "${GLOBAL_CONFIG[BACNEO]}/utils/bacc_norm.R" "${PARAMS[OUT]}" "${TAXONOMY}"
@@ -587,9 +589,9 @@ run_bacc() {
 extract_matrix() {
     declare -A PARAMS
     declare -a TAXONOMY_LEVELS
-    
+
     OPTIND=1
-    
+
     while getopts ":d:l:n:" opt; do
         case ${opt} in
             d) PARAMS[BACC_OUT_DIR]="${OPTARG}" ;;
@@ -609,7 +611,7 @@ extract_matrix() {
     echo -e "TAXONOMY_LEVELS:  ${TAXONOMY_LEVELS[*]}"
     echo -e "NORM:             ${PARAMS[NORM]}"
 
-    for TAXONOMY in "${TAXONOMY_LEVELS[@]}"; do        
+    for TAXONOMY in "${TAXONOMY_LEVELS[@]}"; do
         echo -e "\033[46;37m >> Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
         Rscript "${GLOBAL_CONFIG[BACNEO]}/utils/bacNeo_matrix.R" -d "${PARAMS[BACC_OUT_DIR]}" -l "${TAXONOMY}" -n "${PARAMS[NORM]}"
     done
@@ -629,7 +631,7 @@ run_bach() {
     declare -a GENES
 
     OPTIND=1
-    
+
     while getopts ":1:2:r:c:g:o:t:" opt; do
         case "${opt}" in
             1) PARAMS[FQ1]="${OPTARG}" ;;
@@ -647,7 +649,7 @@ run_bach() {
     if ! validate_bach_params PARAMS GENES; then
         return 1
     fi
-    
+
     echo -e "\033[46;37m >> Running bach with following parameters: \033[0m"
     if [[ -n "${PARAMS[BACC_PATH]}" ]]; then
         echo -e "Using pre-processed BAM workflow"
@@ -687,7 +689,7 @@ run_bach() {
 
         SAM_FILE="${PARAMS[OUT]}/align/${SAMPLE}.sam"
         BAM_FILE="${PARAMS[OUT]}/align/${SAMPLE}_sorted.bam"
-        
+
         echo -e "\033[46;37m >> STEP 0: Aligning for sample ${SAMPLE}... \033[0m"
         bwa mem -t "${PARAMS[THREADS]}" -M -R "@RG\tID:Lane foo\tPL:illumina\tLB:${SAMPLE}\tSM:${SAMPLE}" "${PARAMS[REF]}" "${PARAMS[FQ1]}" "${PARAMS[FQ2]}" > "${SAM_FILE}"
         samtools sort "${SAM_FILE}" -o "${BAM_FILE}" -@ "${PARAMS[THREADS]}"
@@ -747,7 +749,7 @@ run_bacp() {
     if ! validate_bacp_params PARAMS; then
         return 1
     fi
-    
+
     # Display running configuration
     echo -e "\033[46;37m >> Running bacp with following parameters: \033[0m"
     if [ "${PROTEOME_FLAG}" = true ]; then
@@ -770,7 +772,7 @@ run_bacp() {
         > "${OUT}/00_allele_summary/${SAMPLE}.txt"
         for hla_file in "${ALLELE_DIR}/${SAMPLE}"/HLA-*.txt; do
             if [[ -f "$hla_file" ]]; then
-                awk '/HLA gene/ {split($0,a,": "); gene=a[2]} 
+                awk '/HLA gene/ {split($0,a,": "); gene=a[2]}
                     /Type [12]/ {split($3,b,":"); result=gene b[1]":"b[2]; gsub(/N/, "", result); print result}' \
                     "$hla_file" >> "${OUT}/00_allele_summary/${SAMPLE}.txt"
             fi
@@ -788,14 +790,16 @@ run_bacp() {
 
         mkdir -p "${PARAMS[OUT]}/tmp"
         declare -A seen
-        for path in "${PARAMS[INPUT_DIR]}"/*.d; do
+        shopt -s nullglob
+        for path in "${PARAMS[INPUT_DIR]}"/*.{d,raw}; do
             [ -e "${path}" ] || continue
-            SAMPLE=$(basename "${path}" .d)
+            extension="${path##*.}"
+            SAMPLE=$(basename "${path}" ".${extension}")
             [ "${seen[$SAMPLE]}" ] && continue
             seen[$SAMPLE]=1
+            FILENAME="${PARAMS[INPUT_DIR]}/${SAMPLE}.${extension}"
             mkdir -p "${PARAMS[OUT]}/${SAMPLE}"
             fileXML="${PARAMS[OUT]}/tmp/${SAMPLE}.xml"
-
             echo -e "\033[46;37m >> STEP 2: Running maxquant to identify peptides for sample ${SAMPLE}... \033[0m"
             echo -e "<?xml version=\"1.0\" encoding=\"utf-8\"?>
         <MaxQuantParams xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">
@@ -944,7 +948,7 @@ run_bacp() {
             <useDotNetCore>True</useDotNetCore>
             <profilePerformance>False</profilePerformance>
             <filePaths>
-                <string>${PARAMS[INPUT_DIR]}/${SAMPLE}.d</string>
+                <string>${FILENAME}</string>
                 </filePaths>
             <experiments>
                 <string>${SAMPLE}</string>
@@ -1327,9 +1331,9 @@ run_bacp() {
         done
 
     elif [ "${PROTEOME_FLAG}" = false ]; then
-        echo -e "\033[46;37m >> STEP 1: Converting taxonomy reads into fasta files... \033[0m"  
+        echo -e "\033[46;37m >> STEP 1: Converting taxonomy reads into fasta files... \033[0m"
         mkdir -p "${PARAMS[OUT]}/01_na_fastas"
-        
+
         for SAMPLE_PATH in "${PARAMS[ALLELE_DIR]}"/*; do
             SAMPLE=$(basename "${SAMPLE_PATH}")
             echo -e "====================================================================="
@@ -1343,7 +1347,7 @@ run_bacp() {
 
         echo -e "\033[46;37m >> STEP 2: Removing potential contaminants and predicting bacterial peptides... \033[0m"
         mkdir -p "${PARAMS[OUT]}/02_predicted_protein/"
-        
+
         for SAMPLE_PATH in "${PARAMS[ALLELE_DIR]}"/*; do
             SAMPLE=$(basename "${SAMPLE_PATH}")
             echo -e "====================================================================="
@@ -1357,12 +1361,12 @@ run_bacp() {
 
         echo -e "\033[46;37m >> STEP 3: Identifying potential neoantigens... \033[0m"
         mkdir -p "${PARAMS[OUT]}/03_amino_acid_processing" "${PARAMS[OUT]}/04_affinity_with_HLAs"
-        
+
         for SAMPLE_PATH in "${PARAMS[ALLELE_DIR]}"/*; do
             SAMPLE=$(basename "${SAMPLE_PATH}")
             echo -e "====================================================================="
             echo -e "Processing sample ${SAMPLE}: Removing duplicates in fasta files of bacterial peptides..."
-            
+
             FILTERED_PEP="${PARAMS[OUT]}/02_predicted_protein/${SAMPLE}/protein_files/${SAMPLE}_filtered.faa"
             CHECKM2_TRANLATION="${OUT}/02_predicted_protein/${SAMPLE}/protein_files/${SAMPLE}_bacreads.faa"
             awk '
@@ -1375,7 +1379,7 @@ run_bacp() {
                     }
                 }
                 ' "${CHECKM2_TRANLATION}" > "${FILTERED_PEP}"
-            OUT_CDHIT="${PARAMS[OUT]}/03_amino_acid_processing/${SAMPLE}_bacpep_cdhit.fa"         
+            OUT_CDHIT="${PARAMS[OUT]}/03_amino_acid_processing/${SAMPLE}_bacpep_cdhit.fa"
             cd-hit -i "${FILTERED_PEP}" \
                 -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > /dev/null 2>&1
             echo -e "Processing sample ${SAMPLE}: Removing incomplete bacterial peptide sequences without start codon and ribosome binding sites..."
@@ -1401,7 +1405,7 @@ main() {
     fi
 
     init_global_config
-    
+
     case "$1" in
         --download-db)
             shift
