@@ -302,7 +302,7 @@ validate_bacp_params() {
     [[ "${params[PROTEOME_FLAG]}" == true ]] && is_proteome=true
 
     # Exclusive file check
-    if ${is_proteome}; then
+    if "${is_proteome}"; then
         # Proteome workflow validation
         [[ -z "${params[REF_DIR]}" ]] && errors+=("Proteome workflow requires -r (reference proteome directory)")
 
@@ -733,7 +733,7 @@ run_bacp() {
 
     OPTIND=1
 
-    while getopts ":p:i:r:a:o:t:" opt; do
+    while getopts ":pi:r:a:o:t:" opt; do
         case "${opt}" in
             p) PROTEOME_FLAG=true ;;
             i) PARAMS[INPUT_DIR]="${OPTARG}" ;;
