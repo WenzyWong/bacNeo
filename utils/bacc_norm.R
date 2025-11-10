@@ -33,8 +33,8 @@ results <- data.frame(
   CPM = as.numeric(cpm_norm)
 )
 
-write.table(results, 
-            file = paste0(DIR_RES, "/normalized_", TAXONOMY, ".txt"),
-            sep = "\t", 
-            row.names = FALSE, 
+write.table(results,
+            file = paste0(DIR_RES, "/long_norm_", TAXONOMY, ".txt"),
+            sep = "\t",
+            row.names = FALSE,
             quote = FALSE)

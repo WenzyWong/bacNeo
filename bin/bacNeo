@@ -90,7 +90,7 @@ usage() {
     2. For multiple samples, it is recommended to use independent directories for each sample
 
     --- Module 2 - Extract matrix
-        (Extract counts / normalized counts after running 'Module 1 - BACC')
+        (Extract counts / normalised counts after running 'Module 1 - BACC')
         bacNeo --extract-matrix [ -d BACC_OUT_DIR ] [ -l TAXONOMY_LEVEL ] [ -n NORM ]
 
         --extract-matrix    Extract matrix using specified parameters
@@ -572,7 +572,7 @@ run_bacc() {
         echo -e "\033[46;37m >> STEP 5: Extracting counts for taxonomy ${TAXONOMY}... \033[0m"
         python "${GLOBAL_CONFIG[BACNEO]}/utils/bacc_extract.py" -p "${PARAMS[OUT]}" -s "${SAMPLE}" -l "${TAXONOMY}"
         Rscript "${GLOBAL_CONFIG[BACNEO]}/utils/bacc_norm.R" "${PARAMS[OUT]}" "${TAXONOMY}"
-        echo -e "Raw counts, CPM, and abundance saved at: ${PARAMS[OUT]}/normalized_${TAXONOMY}.txt"
+        echo -e "Raw counts, CPM, and abundance saved at: ${PARAMS[OUT]}/long_norm_${TAXONOMY}.txt"
     done
     echo -e "\033[46;37m >> Finish: Processing [Module 1 - Run bacc] for sample ${SAMPLE}. \033[0m"
 }

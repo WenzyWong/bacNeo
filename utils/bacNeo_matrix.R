@@ -34,19 +34,19 @@ parser <- ArgumentParser(
     formatter_class = "argparse.RawTextHelpFormatter"
 )
 # Add arguments
-parser$add_argument("-d", "--dir", 
+parser$add_argument("-d", "--dir",
     type = "character",
     help = "Root directory path for result files",
     metavar = "DIR_PATH"
 )
 
-parser$add_argument("-l", "--level", 
+parser$add_argument("-l", "--level",
     type = "character",
     help = "Taxonomic level (e.g., 's' for species level)",
     metavar = "TAXONOMY"
 )
 
-parser$add_argument("-n", "--norm", 
+parser$add_argument("-n", "--norm",
     type = "character",
     help = "Data normalization method (e.g., 'CPM', 'abundance')",
     metavar = "NORM"
@@ -68,7 +68,7 @@ NORM <- args$norm
 SAMPLE <- list.files(DIR_RES, recursive = F)
 SAMPLE <- SAMPLE[!grepl("standard", SAMPLE)]
 
-dir_norm <- paste0(DIR_RES, "/", SAMPLE, "/normalized_",
+dir_norm <- paste0(DIR_RES, "/", SAMPLE, "/long_norm_",
                    TAXONOMY, ".txt")
 
 result <- NULL
@@ -78,12 +78,12 @@ for (i in seq_along(dir_norm)) {
     warning(sprintf("File does not exist %s", dir_norm[i]))
     next
   }
-  
+
   curr_data <- read.delim(dir_norm[i])
-  
+
   curr_data <- curr_data[, c("species", NORM)]
   colnames(curr_data)[2] <- SAMPLE[i]
-  
+
   if (is.null(result)) {
     result <- curr_data
   } else {
@@ -120,23 +120,23 @@ if (NORM == "abundance" | NORM == "CPM") {
   abund_alluvium$taxonomy <- rownames(abund_alluvium)
   abund_alluvium <- reshape2::melt(abund_alluvium)
 
-  abund_col <- c("#64A4CC", "#9CCEE3", "#ADE0DC", "#D3F2D6", "#ECF6C8", 
-                "#FEEDAA", "#F89D59", "#E75B3A", "#CD2626", "#9A342C", 
+  abund_col <- c("#64A4CC", "#9CCEE3", "#ADE0DC", "#D3F2D6", "#ECF6C8",
+                "#FEEDAA", "#F89D59", "#E75B3A", "#CD2626", "#9A342C",
                 "#DCDCDC")
   n_samples <- length(unique(abund_alluvium$variable))
 
-  p1 <- 
-    ggplot(data = abund_alluvium, aes(x = variable, y = value, 
-                                    alluvium = factor(taxonomy, 
+  p1 <-
+    ggplot(data = abund_alluvium, aes(x = variable, y = value,
+                                    alluvium = factor(taxonomy,
                                                       levels = unique(taxonomy)))) +
-    geom_alluvium(aes(fill = factor(taxonomy, 
-                                    levels = unique(taxonomy))), 
+    geom_alluvium(aes(fill = factor(taxonomy,
+                                    levels = unique(taxonomy))),
                   alpha = 1) +
     scale_fill_manual(values = abund_col, name = "Taxonomy") +
     xlab(if(n_samples > 15) "Sample" else "Samples") +
     ylab("Relative abundance (%)") +
     theme_test() +
-    theme(axis.text.x = if(n_samples > 15) element_blank() else element_text(angle = 90, vjust = .5, colour = 1), 
+    theme(axis.text.x = if(n_samples > 15) element_blank() else element_text(angle = 90, vjust = .5, colour = 1),
           axis.text.y = element_text(colour = 1),
           panel.grid.minor = element_blank(),
           panel.grid.major = element_blank(),
@@ -144,13 +144,13 @@ if (NORM == "abundance" | NORM == "CPM") {
 
   p2 <-
     ggplot(data = abund_select, aes(x = 1, y = abundance,
-                                  fill = factor(taxonomy, levels = taxonomy))) + 
+                                  fill = factor(taxonomy, levels = taxonomy))) +
     geom_bar(width = .5, stat = "identity", position = "stack") +
     scale_fill_manual(values = abund_col, name = "Taxonomy") +
     xlab("Sample (average)") +
     ylab("Relative abundance (%)") +
     theme_test() +
-    theme(axis.text.x = element_blank(), 
+    theme(axis.text.x = element_blank(),
           axis.text.y = element_text(colour = 1),
           axis.ticks.x = element_blank(),
           panel.grid.minor = element_blank(),
