@@ -42,7 +42,7 @@ parser$add_argument("-d", "--dir",
 
 parser$add_argument("-l", "--level",
     type = "character",
-    help = "Taxonomic level (e.g., 's' for species level)",
+    help = "Taxonomic level",
     metavar = "TAXONOMY"
 )
 
@@ -83,6 +83,7 @@ for (i in seq_along(dir_norm)) {
 
   curr_data <- curr_data[, c("taxa", NORM)]
   colnames(curr_data)[2] <- SAMPLE[i]
+  curr_data <- curr_data[!duplicated(curr_data$taxa), ]
 
   if (is.null(result)) {
     result <- curr_data
