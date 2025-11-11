@@ -96,7 +96,7 @@ usage() {
         --extract-matrix    Extract matrix using specified parameters
         -d, --dir           Directory path for matrix extraction
         -l, --level         Taxonomic level(s) for calculation
-        -n, --norm          Normalization methods, including 'raw_count', 'CPM', and 'abundance'
+        -n, --norm          Normalization methods, including 'raw_counts', 'CPM', and 'abundance'
 
     Notes: Make sure that you have already run BACC to extract bacterial reads in all samples
 
@@ -218,8 +218,8 @@ validate_matrix_params() {
     fi
 
     # Validate NORM
-    if [[ -n "${params[NORM]}" && ! "${params[NORM]}" =~ ^(raw_count|CPM|abundance)$ ]]; then
-        errors+=("Invalid normalization type: ${params[NORM]}. Must be raw_count, CPM, or abundance")
+    if [[ -n "${params[NORM]}" && ! "${params[NORM]}" =~ ^(raw_counts|CPM|abundance)$ ]]; then
+        errors+=("Invalid normalization type: ${params[NORM]}. Must be raw_counts, CPM, or abundance")
     fi
 
     if ((${#errors[@]} > 0)); then
