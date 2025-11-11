@@ -30,7 +30,7 @@ library(patchwork)
 ###################
 # Parsing arguments
 parser <- ArgumentParser(
-    description = "Process and merge species data from multiple samples.",
+    description = "Process and merge taxonomic data from multiple samples.",
     formatter_class = "argparse.RawTextHelpFormatter"
 )
 # Add arguments
@@ -81,13 +81,13 @@ for (i in seq_along(dir_norm)) {
 
   curr_data <- read.delim(dir_norm[i])
 
-  curr_data <- curr_data[, c("species", NORM)]
+  curr_data <- curr_data[, c("taxa", NORM)]
   colnames(curr_data)[2] <- SAMPLE[i]
 
   if (is.null(result)) {
     result <- curr_data
   } else {
-    result <- merge(result, curr_data, by = "species", all = T)
+    result <- merge(result, curr_data, by = "taxa", all = T)
   }
 }
 result[is.na(result)] <- 0

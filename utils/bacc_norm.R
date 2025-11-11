@@ -13,10 +13,10 @@ library(edgeR)
 
 dir_counts <- paste0(DIR_RES, "/", "counts_", TAXONOMY, ".txt")
 dt_counts <- read.delim(dir_counts, header = F)
-colnames(dt_counts) <- c("species", "counts")
+colnames(dt_counts) <- c("taxa", "counts")
 
 counts_matrix <- matrix(dt_counts$counts, ncol = 1)
-rownames(counts_matrix) <- dt_counts$species
+rownames(counts_matrix) <- dt_counts$taxa
 
 dge <- DGEList(counts = counts_matrix)
 
@@ -27,7 +27,7 @@ cpm_norm <- cpm(dge)
 abundance <- cpm_norm / 1e4
 
 results <- data.frame(
-  species = dt_counts$species,
+  taxa = dt_counts$taxa,
   raw_counts = dt_counts$counts,
   abundance = as.numeric(abundance),
   CPM = as.numeric(cpm_norm)
