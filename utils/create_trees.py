@@ -12,6 +12,7 @@
 # Other prerequisite: six, numpy, pandas, sip, PyQt5, opencv-python-headless
 from ete3 import NCBITaxa, TreeStyle, NodeStyle, TextFace
 import pandas as pd
+from pandas.errors import EmptyDataError
 import math, os, sys, glob, argparse
 
 def parse_args():
@@ -41,7 +42,13 @@ def parse_args():
 
 def read_kraken2_report(file_path):
     """Extract species abundances from Kraken2 report."""
-    df = pd.read_csv(file_path, sep="\t", header=None)
+    try:
+        df = pd.read_csv(file_path, sep="\t", header=None)
+    except EmptyDataError:
+        # Return an empty DataFrame with the correct columns
+        return pd.DataFrame(columns=["abundance", "taxid", "species"])
+    if df.empty:
+        return pd.DataFrame(columns=["abundance", "taxid", "species"])
 
     # Determine the format based on the number of columns
     num_cols = df.shape[1]
