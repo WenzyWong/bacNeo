@@ -203,6 +203,66 @@ def save_tree_image(tree, output_file, species_abundance, top_species, height):
 
     tree.render(output_file, w=800, h=height, units="px", tree_style=ts)
 
+# Generate OTU tables for de-contamination processes
+def sanitize_name(name: str) -> str:
+    """Create a filesystem- and R-friendly OTU ID from a species string."""
+    if pd.isna(name):
+        name = ""
+    s = re.sub(r'[^A-Za-z0-9_.-]', '_', str(name))
+    s = re.sub(r'_+', '_', s).strip('_')
+    if s == "":
+        s = "OTU"
+    return s
+
+def make_unique(ids: List[str]) -> List[str]:
+    seen = {}
+    out = []
+    for id_ in ids:
+        base = id_
+        i = 1
+        while id_ in seen:
+            id_ = f"{base}_{i}"
+            i += 1
+        seen[id_] = True
+        out.append(id_)
+    return out
+
+def write_decontam_outputs(out_prefix: str, wide_otu_table: pd.DataFrame, tax_cols: List[str]):
+    """Write counts (OTU x samples) and taxonomy (OTU x tax_cols) TSVs suitable for decontam/phyloseq."""
+    if wide_otu_table.empty:
+        # Write empty files with headers so downstream code won't fail
+        counts_path = f"{out_prefix}.counts.tsv"
+        taxonomy_path = f"{out_prefix}.taxonomy.tsv"
+        # counts: just header with OTU column (no samples)
+        with open(counts_path, "w") as fh:
+            fh.write("OTU_ID\n")
+        # taxonomy: headers
+        pd.DataFrame(columns=["OTU_ID"] + tax_cols).to_csv(taxonomy_path, sep="\t", index=False)
+        return
+
+    sample_cols = get_sample_cols(wide_otu_table.columns)
+    counts = wide_otu_table.set_index("species")[sample_cols].fillna(0)
+    try:
+        counts = counts.astype(int)
+    except Exception:
+        counts = counts.fillna(0)
+    # Sanitize OTU IDs
+    original_species = list(counts.index.astype(str))
+    otu_ids = [sanitize_name(s) for s in original_species]
+    otu_ids = make_unique(otu_ids)
+    counts.index = otu_ids
+
+    counts_path = f"{out_prefix}.counts.tsv"
+    counts.to_csv(counts_path, sep="\t", index=True, index_label="OTU_ID")
+
+    # Taxonomy table
+    tax_df = wide_otu_table.set_index("species")[tax_cols].copy()
+    tax_df.index.name = "species"
+    tax_df = tax_df.reindex(original_species)
+    tax_df["OTU_ID"] = otu_ids
+    taxonomy_path = f"{out_prefix}.taxonomy.tsv"
+    tax_df.reset_index(drop=False).set_index("OTU_ID").to_csv(taxonomy_path, sep="\t", index=True)
+
 def main():
     args = parse_args()
 
@@ -229,85 +289,115 @@ def main():
 
         sample_otu["sample"] = name
         otu_table = pd.concat([otu_table, sample_otu], ignore_index=True)
+    if otu_table.empty:
+        print("Warning: No taxa detected in any samples. Writing empty outputs and exiting.", file=sys.stderr)
+        write_decontam_outputs(args.out_prefix, pd.DataFrame(), ["domain", "phylum", "class", "order", "family", "genus", "species"])
+        pd.DataFrame(columns=["domain","phylum","class","order","family","genus","species"]).to_csv(f"{args.out_prefix}.otu.csv", index=False)
+        sys.exit(0)
 
     ncbi = NCBITaxa()
     taxid_list = list(otu_table["taxid"].unique())
     bacteria_taxids = filter_bacteria_taxids(ncbi, taxid_list)
     if not bacteria_taxids:
         print("Error: No Bacteria TaxIDs found.", file=sys.stderr)
+        write_decontam_outputs(args.out_prefix, pd.DataFrame(), ["domain", "phylum", "class", "order", "family", "genus", "species"])
         sys.exit(1)
 
     otu_table = otu_table[otu_table["taxid"].isin(bacteria_taxids)]
 
     translator = ncbi.get_taxid_translator(bacteria_taxids)
-    otu_table["species"] = otu_table["taxid"].map(
-        lambda tid: translator.get(int(tid), str(tid))
-    )
+    try:
+        translator = ncbi.get_taxid_translator(bacteria_taxids)
+    except Exception:
+        translator = {}
 
-    wide_otu_table = otu_table.pivot_table(
-        index="species", columns="sample", values="abundance"
-    ).reset_index()
+    otu_table["species"] = otu_table["taxid"].map(lambda tid: translator.get(int(tid), str(tid)))
+
+    wide_otu_table = otu_table.pivot_table(index="species", columns="sample", values="abundance", aggfunc="sum").reset_index().reset_index()
 
     mapping = build_lineage_mapping(ncbi, otu_table)
 
     tax_cols = ["domain", "phylum", "class", "order", "family", "genus", "species"]
     for col in tax_cols[:-1]:
-        wide_otu_table[col] = wide_otu_table["species"].map(
-            lambda sp: mapping.get(sp, {}).get(col, "")
-        )
+        wide_otu_table[col] = wide_otu_table["species"].map(lambda sp: mapping.get(sp, {}).get(col, ""))
+
     sample_cols = get_sample_cols(wide_otu_table.columns)
     wide_otu_table = wide_otu_table[tax_cols + sample_cols]
 
     wide_otu_table.to_csv(f"{args.out_prefix}.otu.csv", sep = ",", index = False)
+    write_decontam_outputs(args.out_prefix, wide_otu_table, tax_cols)
 
-    # Build tree using all TaxIDs
-    tree = ncbi.get_topology(taxid_list)
-    for leaf in tree.get_leaves():
-        leaf.name = translator.get(int(leaf.name), leaf.name)
+    # Tree building: guard against empty taxid list and exceptions
+    taxid_list_nonempty = [int(t) for t in otu_table["taxid"].unique() if str(t).strip() != ""]
+    if not taxid_list_nonempty:
+        print("Warning: No valid taxids to build trees.", file=sys.stderr)
+        return
 
-    tree.write(outfile=f"{args.out_prefix}.tree", format = 1, quoted_node_names = False)
-    save_tree(tree, f"{args.out_prefix}_tree.nwk")
+    try:
+        tree = ncbi.get_topology(taxid_list_nonempty)
+        for leaf in tree.get_leaves():
+            try:
+                leaf.name = translator.get(int(leaf.name), leaf.name)
+            except Exception:
+                pass
+        tree.write(outfile=f"{args.out_prefix}.tree", format = 1, quoted_node_names = False)
+        save_tree(tree, f"{args.out_prefix}_tree.nwk")
+    except Exception as e:
+        print(f"Warning: Failed to build full tree: {e}", file=sys.stderr)
 
     # Calculate total abundance per species across all samples
     species_abundance = otu_table.groupby("species")["abundance"].sum().to_dict()
     # Top species
     abundance_df = pd.DataFrame.from_dict(species_abundance, orient="index", columns=["abundance"])
 
-    # Top 100 for better display
+    # Top 100
     top_100_species = abundance_df.sort_values(by="abundance", ascending=False).head(100).index.tolist()
     otu_table_100 = otu_table[otu_table["species"].isin(top_100_species)]
     top_100_taxids = otu_table_100["taxid"].unique().tolist()
-    # Build tree using TaxIDs of top 100 species
-    tree_100 = ncbi.get_topology(top_100_taxids)
-    for leaf in tree_100.get_leaves():
-        leaf.name = translator.get(int(leaf.name), leaf.name)
-    tree_100.write(outfile=f"{args.out_prefix}_100.tree", format = 1, quoted_node_names = False)
-    save_tree(tree_100, f"{args.out_prefix}_tree_100.nwk")
+    try:
+        tree_100 = ncbi.get_topology([int(t) for t in top_100_taxids if str(t).strip() != ""])
+        for leaf in tree_100.get_leaves():
+            try:
+                leaf.name = translator.get(int(leaf.name), leaf.name)
+            except Exception:
+                pass
+        tree_100.write(outfile=f"{args.out_prefix}_100.tree", format = 1, quoted_node_names = False)
+        save_tree(tree_100, f"{args.out_prefix}_tree_100.nwk")
+    except Exception as e:
+        print(f"Warning: Failed to build top-100 tree: {e}", file=sys.stderr)
 
-    # Top 500 for better display
+    # Top 500
     top_500_species = abundance_df.sort_values(by="abundance", ascending=False).head(500).index.tolist()
     otu_table_500 = otu_table[otu_table["species"].isin(top_500_species)]
     top_500_taxids = otu_table_500["taxid"].unique().tolist()
-    # Build tree using TaxIDs of top 500 species
-    tree_500 = ncbi.get_topology(top_500_taxids)
-    for leaf in tree_500.get_leaves():
-        leaf.name = translator.get(int(leaf.name), leaf.name)
-    tree_500.write(outfile=f"{args.out_prefix}_500.tree", format = 1, quoted_node_names = False)
-    save_tree(tree_500, f"{args.out_prefix}_tree_500.nwk")
+    try:
+        tree_500 = ncbi.get_topology([int(t) for t in top_500_taxids if str(t).strip() != ""])
+        for leaf in tree_500.get_leaves():
+            try:
+                leaf.name = translator.get(int(leaf.name), leaf.name)
+            except Exception:
+                pass
+        tree_500.write(outfile=f"{args.out_prefix}_500.tree", format = 1, quoted_node_names = False)
+        save_tree(tree_500, f"{args.out_prefix}_tree_500.nwk")
+    except Exception as e:
+        print(f"Warning: Failed to build top-500 tree: {e}", file=sys.stderr)
 
-    # Top 30 or top-user-identified-number
-    top_30_species = abundance_df.sort_values(by="abundance", ascending=False).head(int(args.top_number)).index.tolist()
-    otu_table_30 = otu_table[otu_table["species"].isin(top_30_species)]
-    top_30_taxids = otu_table_30["taxid"].unique().tolist()
-    # To 10 species
+    # Top N (user specified)
+    top_n = int(args.top_number)
+    top_n_species = abundance_df.sort_values(by="abundance", ascending=False).head(top_n).index.tolist()
+    otu_table_n = otu_table[otu_table["species"].isin(top_n_species)]
+    top_n_taxids = [t for t in otu_table_n["taxid"].unique().tolist() if str(t).strip() != ""]
     top_10_species = abundance_df.sort_values(by="abundance", ascending=False).head(10).index.tolist()
-
-    # Build tree using TaxIDs of top 30 species
-    tree_30 = ncbi.get_topology(top_30_taxids)
-    for leaf in tree_30.get_leaves():
-        leaf.name = translator.get(int(leaf.name), leaf.name)
-
-    save_tree_image(tree_30, f"{args.out_prefix}_tree_{int(args.top_number)}.png", species_abundance, top_10_species, int(args.top_number) * 30)
+    try:
+        tree_n = ncbi.get_topology([int(t) for t in top_n_taxids])
+        for leaf in tree_n.get_leaves():
+            try:
+                leaf.name = translator.get(int(leaf.name), leaf.name)
+            except Exception:
+                pass
+        save_tree_image(tree_n, f"{args.out_prefix}_tree_{top_n}.png", species_abundance, top_10_species, top_n * 30)
+    except Exception as e:
+        print(f"Warning: Failed to build top-{top_n} tree/image: {e}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
