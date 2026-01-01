@@ -13,7 +13,8 @@
 from ete3 import NCBITaxa, TreeStyle, NodeStyle, TextFace
 import pandas as pd
 from pandas.errors import EmptyDataError
-import math, os, sys, glob, argparse
+import math, os, sys, glob, argparse, re
+from typing import List
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -38,6 +39,10 @@ def parse_args():
         help="top ranked number based on species abundance across all samples",
     )
     args = parser.parse_args()
+
+    args.input_dir = args.input_dir.rstrip('/')
+    args.out_prefix = args.out_prefix.rstrip('/')
+    
     return args
 
 def read_kraken2_report(file_path):
@@ -70,9 +75,9 @@ def read_kraken2_report(file_path):
     filtered = df[(df[rank_col] == "S") & (df[1] > 0)]
 
     result = pd.DataFrame()
-    result["abundance"] = filtered[1]
-    result["taxid"] = filtered[taxid_col]
-    result["species"] = filtered[name_col].str.strip()
+    result["abundance"] = filtered[1].astype(int)
+    result["taxid"] = filtered[taxid_col].astype(str)
+    result["species"] = filtered[name_col].astype(str).str.strip()
 
     return result
 
@@ -229,6 +234,16 @@ def make_unique(ids: List[str]) -> List[str]:
 
 def write_decontam_outputs(out_prefix: str, wide_otu_table: pd.DataFrame, tax_cols: List[str]):
     """Write counts (OTU x samples) and taxonomy (OTU x tax_cols) TSVs suitable for decontam/phyloseq."""
+    if "species" not in wide_otu_table.columns:
+        print("Error: 'species' column missing in OTU table", file=sys.stderr)
+        # Write empty files to avoid crashing downstream
+        counts_path = f"{out_prefix}.counts.tsv"
+        taxonomy_path = f"{out_prefix}.taxonomy.tsv"
+        with open(counts_path, "w") as fh:
+            fh.write("OTU_ID\n")
+        pd.DataFrame(columns=["OTU_ID"] + tax_cols).to_csv(taxonomy_path, sep="\t", index=False)
+        return
+    
     if wide_otu_table.empty:
         # Write empty files with headers so downstream code won't fail
         counts_path = f"{out_prefix}.counts.tsv"
@@ -256,12 +271,25 @@ def write_decontam_outputs(out_prefix: str, wide_otu_table: pd.DataFrame, tax_co
     counts.to_csv(counts_path, sep="\t", index=True, index_label="OTU_ID")
 
     # Taxonomy table
-    tax_df = wide_otu_table.set_index("species")[tax_cols].copy()
+    # We need to exclude 'species' from tax_cols when creating the taxonomy DataFrame
+    # since 'species' will be included separately
+    tax_cols_without_species = [c for c in tax_cols if c != "species"]
+    
+    # Get taxonomy data with species as index
+    tax_df = wide_otu_table.set_index("species")[tax_cols_without_species].copy()
     tax_df.index.name = "species"
     tax_df = tax_df.reindex(original_species)
+    
+    # Add species name and OTU_ID
+    tax_df["species"] = tax_df.index  # Add species name as a column
     tax_df["OTU_ID"] = otu_ids
+    
+    # Reorder columns to have OTU_ID first, then taxonomy columns
+    final_cols = ["OTU_ID"] + tax_cols
+    tax_df = tax_df[final_cols]
+    
     taxonomy_path = f"{out_prefix}.taxonomy.tsv"
-    tax_df.reset_index(drop=False).set_index("OTU_ID").to_csv(taxonomy_path, sep="\t", index=True)
+    tax_df.set_index("OTU_ID").to_csv(taxonomy_path, sep="\t", index=True)
 
 def main():
     args = parse_args()
@@ -289,6 +317,7 @@ def main():
 
         sample_otu["sample"] = name
         otu_table = pd.concat([otu_table, sample_otu], ignore_index=True)
+    
     if otu_table.empty:
         print("Warning: No taxa detected in any samples. Writing empty outputs and exiting.", file=sys.stderr)
         write_decontam_outputs(args.out_prefix, pd.DataFrame(), ["domain", "phylum", "class", "order", "family", "genus", "species"])
@@ -304,16 +333,26 @@ def main():
         sys.exit(1)
 
     otu_table = otu_table[otu_table["taxid"].isin(bacteria_taxids)]
+    
+    # Check if otu_table is empty after bacteria filtering
+    if otu_table.empty:
+        print("Warning: No bacterial taxa found after filtering. Writing empty outputs and exiting.", file=sys.stderr)
+        write_decontam_outputs(args.out_prefix, pd.DataFrame(), ["domain", "phylum", "class", "order", "family", "genus", "species"])
+        pd.DataFrame(columns=["domain","phylum","class","order","family","genus","species"]).to_csv(f"{args.out_prefix}.otu.csv", index=False)
+        sys.exit(0)
 
     translator = ncbi.get_taxid_translator(bacteria_taxids)
-    try:
-        translator = ncbi.get_taxid_translator(bacteria_taxids)
-    except Exception:
-        translator = {}
-
+    
     otu_table["species"] = otu_table["taxid"].map(lambda tid: translator.get(int(tid), str(tid)))
 
-    wide_otu_table = otu_table.pivot_table(index="species", columns="sample", values="abundance", aggfunc="sum").reset_index().reset_index()
+    wide_otu_table = otu_table.pivot_table(index="species", columns="sample", values="abundance", aggfunc="sum").reset_index()
+    
+    # Check if wide_otu_table is empty
+    if wide_otu_table.empty or "species" not in wide_otu_table.columns:
+        print("Warning: Could not create OTU table. Writing empty outputs.", file=sys.stderr)
+        write_decontam_outputs(args.out_prefix, pd.DataFrame(), ["domain", "phylum", "class", "order", "family", "genus", "species"])
+        pd.DataFrame(columns=["domain","phylum","class","order","family","genus","species"]).to_csv(f"{args.out_prefix}.otu.csv", index=False)
+        return
 
     mapping = build_lineage_mapping(ncbi, otu_table)
 
