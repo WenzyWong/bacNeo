@@ -44,3 +44,4 @@ dependencies:
   - hisat2
   - checkm2
   - maxquant
+  - bioconductor-decontam
