@@ -21,6 +21,7 @@ dependencies:
   - r-dplyr
   - r-reshape2
   - r-forcats
+  - r-tidyverse
   - python
   - scikit-learn
   - zlib
@@ -44,4 +45,9 @@ dependencies:
   - hisat2
   - checkm2
   - maxquant
+  - igraph
+  - bioconductor-phyloseq
   - bioconductor-decontam
+  - bioconductor-biocgenerics
+  - bioconductor-biostrings
+  - bioconductor-rhdf5lib
