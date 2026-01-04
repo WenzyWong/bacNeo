@@ -1029,8 +1029,6 @@ run_bacp() {
                             <string>Acetyl (Protein N-term)</string>
                             <string>Deamidation (NQ)</string>
                             <string>Formyl (Protein N-term)</string>
-                            <string>Phospho (STY)</string>
-                            <string>Methylation (KR)</string>
                         </variableModifications>
                         <useMultiModification>False</useMultiModification>
                         <multiModifications>
@@ -1525,12 +1523,10 @@ run_bacp() {
                     <useEnzymeFirstSearch>False</useEnzymeFirstSearch>
                     <useVariableModificationsFirstSearch>False</useVariableModificationsFirstSearch>
                     <variableModifications>
-                            <string>Oxidation (M)</string>
-                            <string>Acetyl (Protein N-term)</string>
-                            <string>Deamidation (NQ)</string>
-                            <string>Formyl (Protein N-term)</string>
-                            <string>Phospho (STY)</string>
-                            <string>Methylation (KR)</string>
+                        <string>Oxidation (M)</string>
+                        <string>Acetyl (Protein N-term)</string>
+                        <string>Deamidation (NQ)</string>
+                        <string>Formyl (Protein N-term)</string>
                     </variableModifications>
                     <useMultiModification>False</useMultiModification>
                     <multiModifications>
