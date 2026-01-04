@@ -25,6 +25,10 @@
   - [BACH](#bach)
 
   - [BACP](#bacp)
+
+- [Other Utils](#other-utils)
+
+  - [Decontamination](#decontamination)
   
 - [Example Script](#example-script)
 
@@ -546,7 +550,17 @@ bach/
     └── Weak_binders.csv
     ```
 
-### Example script
+## Other utils
+
+### Decontamination
+
+To facilitate more strict detection of tumour microbiome, we also provide user-callable scripts for decontamination. `/utils/create_tree.py` can output files for decontamination while creating phylogenic trees. `/utils/decontam_analysis.R` can then utilise these files to run decontamination processes. Both normal samples and negative control samples are required to run `decontam_analysis.R`. The usage is as follows:
+
+```bash
+Usage: Rscript decontam_analysis.R <samples_prefix> <negatives_prefix> [output_prefix]
+```
+
+## Example script
 
 Here's an example written in `bash` script, running all the commands above to generate predicted bacterial neoantigens based on RNA-seq clean data:
 
