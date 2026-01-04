@@ -874,9 +874,9 @@ run_bacp() {
                 </intensityPredictionsFile>
                 <minPepLen>7</minPepLen>
                 <psmFdrCrosslink>0.01</psmFdrCrosslink>
-                <peptideFdr>0.01</peptideFdr>
-                <proteinFdr>0.01</proteinFdr>
-                <siteFdr>0.01</siteFdr>
+                <peptideFdr>0.05</peptideFdr>
+                <proteinFdr>0.05</proteinFdr>
+                <siteFdr>0.05</siteFdr>
                 <minPeptideLengthForUnspecificSearch>8</minPeptideLengthForUnspecificSearch>
                 <maxPeptideLengthForUnspecificSearch>25</maxPeptideLengthForUnspecificSearch>
                 <useNormRatiosForOccupancy>True</useNormRatiosForOccupancy>
@@ -1044,7 +1044,7 @@ run_bacp() {
                         </additionalVariableModificationProteins>
                         <doMassFiltering>True</doMassFiltering>
                         <firstSearchTol>20</firstSearchTol>
-                        <mainSearchTol>10</mainSearchTol>
+                        <mainSearchTol>4.5</mainSearchTol>
                         <searchTolInPpm>True</searchTolInPpm>
                         <isotopeMatchTol>0.005</isotopeMatchTol>
                         <isotopeMatchTolInPpm>False</isotopeMatchTolInPpm>
@@ -1359,7 +1359,7 @@ run_bacp() {
             <dependentPeptidesRestrictFractions>False</dependentPeptidesRestrictFractions>
             <dependentPeptidesFractionDifference>0</dependentPeptidesFractionDifference>
             <msmsConnection>False</msmsConnection>
-            <ibaq>False</ibaq>
+            <ibaq>True</ibaq>
             <top3>False</top3>
             <independentEnzymes>False</independentEnzymes>
             <useDeltaScore>False</useDeltaScore>
@@ -1378,9 +1378,9 @@ run_bacp() {
             </intensityPredictionsFile>
             <minPepLen>7</minPepLen>
             <psmFdrCrosslink>0.01</psmFdrCrosslink>
-            <peptideFdr>1</peptideFdr>
-            <proteinFdr>1</proteinFdr>
-            <siteFdr>0.01</siteFdr>
+            <peptideFdr>0.05</peptideFdr>
+            <proteinFdr>0.05</proteinFdr>
+            <siteFdr>0.05</siteFdr>
             <minPeptideLengthForUnspecificSearch>8</minPeptideLengthForUnspecificSearch>
             <maxPeptideLengthForUnspecificSearch>25</maxPeptideLengthForUnspecificSearch>
             <useNormRatiosForOccupancy>True</useNormRatiosForOccupancy>
