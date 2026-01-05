@@ -28,7 +28,27 @@
 
 - [Other Utils](#other-utils)
 
+  - [Taxa Matrix & Abundance Plot](#taxa-matrix-and-abundance-plot)
+
+  - [Taxon-level Count Extractor](#taxon-level-count-extractor)
+
+  - [CPM & Abundance Normaliser](#cpm-and-abundance-normaliser)
+
+  - [Allele VS Peptide Scatter](#allele-vs-peptide-scatter)
+
+  - [Allele Distribution Visualiser](#allele-distribution-visualiser)
+
+  - [Binder Summary & TAP Scoring](#binder-summary-and-tap-scoring)
+
+  - [Peptide–Species Aggregator & Network](#peptide-species-aggregator-and-network)
+
+  - [Kraken Read Extractor](#kraken-read-extractor)
+
+  - [Kraken to OTU & Phylogenetic Trees](#kraken-to-otu-and-phylogenetic-trees)
+
   - [Decontamination](#decontamination)
+
+  - [scRNA-seq Expansion](#scrna-seq-expansion)
   
 - [Example Script](#example-script)
 
@@ -552,12 +572,311 @@ bach/
 
 ## Other utils
 
-### Decontamination
+### Taxa matrix and abundance plot
 
-To facilitate more strict detection of tumour microbiome, we also provide user-callable scripts for decontamination. `/utils/create_tree.py` can output files for decontamination while creating phylogenic trees. `/utils/decontam_analysis.R` can then utilise these files to run decontamination processes. Both normal samples and negative control samples are required to run `decontam_analysis.R`. The usage is as follows:
+Related script: `/utils/bacNeo_matrix.R`.
+
+- Purpose: Combine normalized taxonomic tables from multiple samples into a single matrix (taxa × samples) and produce a summary abundance plot (alluvium + stacked bar) for the top taxa.
+
+- Inputs:
+
+  - Directory containing per-sample files named like `<sample>/long_norm_<TAXONOMY>.txt`
+  
+  - Taxonomic level (e.g., species, genus)
+  
+  - Normalisation type (e.g., CPM, abundance)
+
+- Outputs:
+
+  - `matrix_<NORM>_<TAXONOMY>.txt` (merged matrix)
+  
+  - `Plot_abundance_<TAXONOMY>.pdf` (abundance visualisation; created if NORM is CPM or abundance)
+
+- Usage:
 
 ```bash
-Usage: Rscript decontam_analysis.R <samples_prefix> <negatives_prefix> [output_prefix]
+Rscript bacNeo_matrix.R -d /path/to/results -l species -n CPM
+```
+
+- Dependencies: R packages `argparse`, `ggplot2`, `ggalluvial`, `patchwork`, `reshape2`.
+
+- Notes: Skips samples that lack the expected input file; fills missing values with zeros and orders taxa by mean abundance.
+
+### Taxon-level count extractor
+
+Related script: `/utils/bacc_extract.py`.
+
+- Purpose: Parse an .mpa (Kraken2/mpa-style) taxonomy count file for a single sample and extract read counts at one or more taxonomic level prefixes (d, p, c, o, f, g, s).
+
+- Inputs:
+
+  - -p / --path : input/output directory
+  
+  - -s / --sample : sample name (expects `<sample>.mpa` in the path)
+  
+  - -l / --levels : one or more taxonomy prefixes to extract (e.g., -l d p g)
+
+- Outputs: `counts_<level>.txt` files (tab-separated lines prefix__Name\tCount)
+
+- Usage:
+
+```bash
+python bacc_extract.py -p /path/to/dir -s SAMPLE -l d p g
+```
+
+- Dependencies: Python (`pandas`). Validates input levels; extracts only entries containing "Bacteria".
+
+### CPM and abundance normaliser
+
+Related script: `/utils/bacc_norm.R`
+
+- Purpose: Convert raw read counts (from `counts_<TAXONOMY>.txt`) into CPM and relative abundance and produce a long-format normalization file used by downstream steps.
+
+- Inputs:
+
+  - Positional args: `<DIR_RES> <TAXONOMY>`
+
+  - Expects `counts_<TAXONOMY>.txt` in DIR_RES
+
+- Outputs: `long_norm_<TAXONOMY>.txt` with columns: taxa, raw_counts, abundance, CPM
+
+- Usage:
+
+```bash
+Rscript bacc_norm.R /path/to/results species
+```
+
+- Dependencies: R package `edgeR`.
+
+### Allele vs peptide scatter
+
+Related script: `/utils/bacp_allele_pep_scatter.R`
+
+- Purpose: Create a scatter plot showing allele frequency (%) vs bound-peptide percentage (%) using allele summary and strong-binder lists.
+
+- Inputs: Single positional argument: directory that contains `Strong_binders.csv` and `00_allele_summary/Allele_summary.csv`
+
+- Outputs: `Scatter_allele_peptide_percentage.pdf` in the supplied directory
+
+- Usage:
+
+```bash
+Rscript bacp_allele_pep_scatter.R /path/to/output_dir
+```
+
+- Dependencies: R packages `dplyr`, `ggplot2`, `paletteer`, `ggrepel`.
+
+- Notes: Joins allele counts and strong binder counts to compute percentages; assigns colors from `paletteer`.
+
+### Allele distribution visualiser
+
+Related script: `/utils/bacp_allele_visualization.R`.
+
+- Purpose: Aggregate allele calls across sample `.txt` files, create an allele frequency summary `CSV` and draw a bar plot of allele distribution.
+
+- Inputs: Single positional argument of directory containing allele `.txt` files (per-sample)
+
+- Outputs:
+  
+  - `Allele_summary.csv`
+  
+  - `Bar_distribution_alleles.pdf`
+
+- Usage:
+
+```bash
+Rscript bacp_allele_visualization.R /path/to/allele_files_dir
+```
+
+- Dependencies: R packages `dplyr`, `ggplot2`, `forcats`.
+
+- Notes: Reads all `.txt` files in the directory; removes trailing 'N' in allele strings and writes a combined `Allele_summary.csv`.
+
+### Binder summary and TAP scoring
+
+Related script: `/utils/bacp_binder_summary_with_TAP_efficiency.R`.
+
+- Purpose: Parse netMHCpan HLA affinity output files to extract strong and weak binders, compute a TAP-binding logIC50-like score for 9-mer peptides, combine TAP and BA rank percentiles, and rank neoantigen candidates.
+
+- Inputs: Single argument of output directory containing netMHCpan `.xls/HLA-` files (files matched by `HLA-` pattern)
+
+- Outputs: `Strong_binders.csv`, `Weak_binders.csv`, `Neoantigen_candidates.csv` in the output directory
+
+- Usage:
+
+```bash
+Rscript bacp_binder_summary_with_TAP_efficiency.R /path/to/netMHC_output_dir
+```
+
+- Dependencies: R package `dplyr`
+
+- Notes:
+
+  - Strong binders: BA_Rank ≤ 0.5
+  
+  - Weak binders: 0.5 < BA_Rank ≤ 2
+  
+  - TAP efficiency: uses a 20×9 consensus scoring matrix for 9-mer peptides; peptides with TAP_logIC50 < 0 are prioritized; produces a combined weight from TAP + BA percentiles.
+
+### Peptide–species aggregator and network
+
+Related script: `/utils/bacp_pep_count.R`
+
+- Purpose: From multiple MaxQuant `proteinGroups.txt` outputs, aggregate peptide-to-protein mappings, remove contaminants and human-derived hits, extract bacterial genus/species from FASTA headers, produce peptide/sequence files and draw a species–peptide bipartite network.
+
+- Inputs: Single positional argument of root output directory that contains `*/combined/txt/proteinGroups.txt` files
+
+- Outputs:
+
+  - `peptide_info.csv` (aggregated peptide/protein info + genus/species)
+  
+  - `sequences.txt` (all non-redundant peptide sequences ≥ 8 aa)
+  
+  - `species_peptide_network.pdf` (network plot)
+
+- Usage:
+
+```bash
+Rscript bacp_pep_count.R /path/to/maxquant_results_root
+```
+
+- Dependencies: R packages `Rcpp`, `withr`, `readxl`, `stringr`, `data.table`, `dplyr`, `igraph`
+
+- Notes: Removes contaminants/reverse and proteins annotated as human proteins; consolidates protein IDs for identical peptides.
+
+### Kraken read extractor
+
+Related script: `/utils/bacp_taxon2fasta.py`.
+
+- Purpose: Extract reads matching given Kraken2 taxon IDs (or auto-collect taxids from a Kraken output) from FASTA/FASTQ files and write them to a FASTA/FASTQ output. This script is adapted from KrakenTools' `extract_kraken_reads.py` with added taxid-collection behavior and simplified pairing logic.
+
+- Inputs / important options:
+  
+  - -k : Kraken output file
+  
+  - -1 / -s1 : input FASTA/FASTQ file (required)
+  
+  - -2 / -s2 : second pair FASTA/FASTQ (optional)
+  
+  - -t / --taxid : list of taxids to extract (optional — if not provided, taxids are collected automatically)
+  
+  - -o : output file path
+  
+  - --report : optional Kraken report needed if --include-parents or --include-children are used
+  
+  - --include-parents, --include-children, --exclude and --fastq-output provide additional behaviors
+
+- Outputs: FASTA/FASTQ file with reads matching (or not matching, if --exclude) the taxids
+
+- Usage:
+
+```bash
+python bacp_taxon2fasta.py -k kraken.out -1 reads_R1.fastq -2 reads_R2.fastq -t 562 561 -o extracted.fasta
+```
+
+or auto-collect taxids:
+
+```bash
+python bacp_taxon2fasta.py -k kraken.out -1 reads.fastq -o extracted.fasta
+```
+
+- Dependencies: Python, `Biopython` (SeqIO), `gzip`; (preserves original 
+ semantics)
+
+- Notes: Can append to existing output with `--append`; supports FASTQ output if input is FASTQ and option `--fastq-output` set.
+
+### Kraken to OTU and phylogenetic trees
+
+Related script: `/utils/create_trees.py`.
+
+- Purpose: Convert Kraken2 `.standard` report files into: an OTU table (CSV) with taxonomy columns suitable for downstream R workflows, decontamination-ready counts/taxonomy TSVs, one or more pruned NCBI trees and a styled tree image highlighting top species by abundance.
+
+- Inputs:
+  
+  - --input_dir / -i : directory containing `*.standard` Kraken2 report files
+  
+  - --out_prefix / -o : prefix for outputs (default output)
+  
+  - --top_number / -t : number of top species to include in the styled tree (default 30)
+
+- Outputs:
+  
+  - `<prefix>.otu.csv` (OTU table with domain→species and sample columns)
+  
+  - `<prefix>.counts.tsv`, `<prefix>.taxonomy.tsv` (decontam/phyloseq-ready)
+  
+  - `<prefix>.tree`, `<prefix>_tree.nwk`, and PNG renderings for top-N species trees (e.g., `_tree_30.png`)
+
+- Usage:
+
+```bash
+python create_trees.py -i /path/to/reports -o my_out -t 50
+```
+
+- Dependencies: Python packages `ete3` (`NCBITaxa`), `pandas`, `numpy`, and system dependencies for `ete3` (`six`, `PyQt5` / `renderer` support, `opencv` for PNG rendering).
+
+- Notes:
+
+  - Filters TaxIDs to Bacteria (TaxID 2).
+  
+  - Produces empty-safe outputs (writes headers/files even if no taxa found) to avoid downstream failures.
+  
+  - Tree rendering uses a color/width gradient proportional to abundance and bolds the top 10 species.
+
+### Decontamination
+
+Related script: `/utils/decontam_analysis.R`
+
+- Purpose: Identify and remove contaminant taxa from OTU tables using the R package decontam (prevalence method using negative controls) and write cleaned counts, taxonomy, contaminant list and a summary.
+
+- Inputs: SAMPLES_PREFIX and NEGATIVES_PREFIX (each must have `<prefix>.counts.tsv` and `<prefix>.taxonomy.tsv` generated by create_trees.py); optional output prefix as third positional argument (default decontaminated)
+
+- Outputs:
+  
+  - `<output>_contaminants.tsv`
+  
+  - `<output>_counts.tsv` (filtered OTU table)
+  
+  - `<output>_taxonomy.tsv` (filtered taxonomy)
+  
+  - `<output>_summary.tsv`
+
+- Usage:
+
+```bash
+Rscript decontam_analysis.R /path/samples/out /path/negatives/out decontaminated
+```
+
+- Dependencies: R packages `decontam`, `phyloseq`, `tidyverse`
+
+- Notes: Uses `isContaminant(method="prevalence", neg="is.neg")` — samples listed as negatives determine prevalence-based contamination calls.
+
+### scRNA-seq expansion
+
+Related script: `/utils/sc_expansion.sh`.
+
+- Purpose: Preprocess single-cell RNA-seq FASTQ reads to extract cell-barcodes from read sequences, remove the barcode region from sequences/qualities, and run bacNeo bacterial discovery on the processed paired FASTQ files.
+
+- Inputs / flags:
+  
+  - -s SAMPLE : sample name
+  
+  - -r REFERENCE : hisat2 reference path (used in subsequent bacNeo call)
+  
+  - -1 FQ1_PATH : path to R1 FASTQ
+  
+  - -2 FQ2_PATH : path to R2 FASTQ
+  
+  - -o OUT_DIR : output directory
+  
+  - -t THREADS : number of threads
+
+- Outputs: Creates `${OUT_DIR}/${SAMPLE}` directory with processed fastq files `${SAMPLE}_removed_R1.fastq` and `${SAMPLE}_removed_R2.fastq` and then invokes `bacNeo --bacc ...` to run downstream analysis (bacNeo handles its own outputs under that directory)
+
+- Usage:
+
+```bash
+./sc_expansion.sh -s SAMPLE -r /path/hisat2_ref -1 sample_R1.fastq -2 sample_R2.fastq -o /path/out -t 8
 ```
 
 ## Example script
