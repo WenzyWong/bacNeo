@@ -777,7 +777,7 @@ run_bacp() {
         echo -e "\033[46;37m >> STEP 1: Preprocessing reference fasta... \033[0m"
         #cat "${PARAMS[REF_DIR]}"/*.fasta > "${PARAMS[REF_DIR]}/reference.fa"
         OUT_CDHIT="${PARAMS[REF_DIR]}/reference_rmdup.fa"
-        cd-hit -i "${PARAMS[REF_DIR]}/reference.fa" -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > /dev/null 2>&1
+        cd-hit -i "${PARAMS[REF_DIR]}/reference.fa" -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 -T ${PARAMS[THREADS]} > /dev/null 2>&1
 
         mkdir -p "${PARAMS[OUT]}/tmp"
         declare -A seen
@@ -1728,7 +1728,7 @@ run_bacp() {
                 ' "${CHECKM2_TRANLATION}" > "${FILTERED_PEP}"
             OUT_CDHIT="${PARAMS[OUT]}/03_amino_acid_processing/${SAMPLE}_bacpep_cdhit.fa"
             cd-hit -i "${FILTERED_PEP}" \
-                -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 > /dev/null 2>&1
+                -o "${OUT_CDHIT}" -c 0.9 -aS 0.9 -d 0 -T ${PARAMS[THREADS]} > /dev/null 2>&1
             echo -e "Processing sample ${SAMPLE}: Removing incomplete bacterial peptide sequences without start codon and ribosome binding sites..."
             INPUT_PEP="${PARAMS[OUT]}/03_amino_acid_processing/${SAMPLE}_bacpep.txt"
             grep -v "^>" "${OUT_CDHIT}" | sed 's/\*//' > "${INPUT_PEP}"
