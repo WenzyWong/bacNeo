@@ -340,7 +340,7 @@ reference/
 2 directories, 6 files
 ```
 
-## BACC
+### BACC
 
 `--bacc` can extract the number of bacterial componants from genome or transcriptome datasets, and output raw counts and normalized data (CPM and/or abundance) with charts and graphics to assist downstream analysis. The command will generate sample-specific bacterial counts/CPM/abundance within your input taxonomic level(s).
 
