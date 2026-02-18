@@ -32,17 +32,12 @@ show_help <- function() {
 
   Output files:
     <output>_contaminants.tsv - List of contaminant OTUs
-    <output>_counts.tsv       - Filtered OTU count table
+    <output>_counts.tsv       - Filtered OTU count table (samples only, negatives excluded)
     <output>_taxonomy.tsv     - Filtered taxonomy table
     <output>_summary.tsv      - Summary statistics
 
   Example:
     Rscript decontam_analysis.R /path/to/samples/out /path/to/negatives/out -o decontaminated
-
-    This will process:
-      - /path/to/samples/out.counts.tsv and /path/to/samples/out.taxonomy.tsv
-      - /path/to/negatives/out.counts.tsv and /path/to/negatives/out.taxonomy.tsv
-    and produce output files prefixed with 'decontaminated_'.
 
   Dependencies:
     decontam, phyloseq, tidyverse R packages
@@ -52,89 +47,107 @@ show_help <- function() {
 # Parse arguments
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2) {
-  stop("Usage: Rscript decontam_analysis.R <samples_prefix> <negatives_prefix> [output_prefix]", 
+  stop("Usage: Rscript decontam_analysis.R <samples_prefix> <negatives_prefix> [output_prefix]",
        call. = FALSE)
 }
 
-samples_prefix <- args[1]
+samples_prefix  <- args[1]
 negatives_prefix <- args[2]
-output_prefix <- ifelse(length(args) > 2, args[3], "decontaminated")
+output_prefix   <- ifelse(length(args) > 2, args[3], "decontaminated")
 
-# Function to read decontam-format tables
+# Function to read count + taxonomy tables
 read_decontam_tables <- function(prefix) {
-  counts_file <- paste0(prefix, ".counts.tsv")
+  counts_file   <- paste0(prefix, ".counts.tsv")
   taxonomy_file <- paste0(prefix, ".taxonomy.tsv")
-  
+
   if (!file.exists(counts_file) || !file.exists(taxonomy_file)) {
     stop(paste("Required files not found for prefix:", prefix), call. = FALSE)
   }
-  
-  counts <- read_tsv(counts_file, show_col_types = FALSE) %>%
-    column_to_rownames("OTU_ID")
-  
-  taxonomy <- read_tsv(taxonomy_file, show_col_types = FALSE) %>%
-    column_to_rownames("OTU_ID")
-  
-  return(list(counts = counts, taxonomy = taxonomy))
+
+  counts   <- read_tsv(counts_file,   show_col_types = FALSE) %>% column_to_rownames("OTU_ID")
+  taxonomy <- read_tsv(taxonomy_file, show_col_types = FALSE) %>% column_to_rownames("OTU_ID")
+
+  list(counts = counts, taxonomy = taxonomy)
 }
 
-# Read data
 cat("Reading sample data...\n")
-samples_data <- read_decontam_tables(samples_prefix)
+samples_data   <- read_decontam_tables(samples_prefix)
+
+cat("Reading negative control data...\n")
 negatives_data <- read_decontam_tables(negatives_prefix)
 
-# Create phyloseq objects
-otu_mat <- as.matrix(samples_data$counts)
-tax_mat <- as.matrix(samples_data$taxonomy)
+all_otus <- union(rownames(samples_data$counts), rownames(negatives_data$counts))
 
-# Create sample metadata
-samples <- colnames(otu_mat)
-negatives <- colnames(as.matrix(negatives_data$counts))
+expand_to_full <- function(counts_df, all_otus) {
+  missing <- setdiff(all_otus, rownames(counts_df))
+  if (length(missing) > 0) {
+    pad <- matrix(0L, nrow = length(missing), ncol = ncol(counts_df),
+                  dimnames = list(missing, colnames(counts_df)))
+    counts_df <- rbind(counts_df, pad)
+  }
+  counts_df[all_otus, , drop = FALSE]
+}
+
+samples_counts_full  <- expand_to_full(samples_data$counts,  all_otus)
+negatives_counts_full <- expand_to_full(negatives_data$counts, all_otus)
+
+merged_counts <- cbind(samples_counts_full, negatives_counts_full)
+
+# Resolve taxonomy: prefer sample annotation; fall back to negatives
+merged_tax <- samples_data$taxonomy
+neg_only_otus <- setdiff(rownames(negatives_data$taxonomy), rownames(merged_tax))
+if (length(neg_only_otus) > 0) {
+  merged_tax <- rbind(merged_tax, negatives_data$taxonomy[neg_only_otus, , drop = FALSE])
+}
+merged_tax <- merged_tax[all_otus, , drop = FALSE]
+
+sample_names_all <- colnames(merged_counts)
+neg_sample_names <- colnames(negatives_data$counts)
 sample_data_df <- data.frame(
-  row.names = samples,
-  is.neg = samples %in% negatives
+  row.names = sample_names_all,
+  is.neg    = sample_names_all %in% neg_sample_names
 )
+
+cat(sprintf("Samples: %d true samples, %d negative controls\n",
+            sum(!sample_data_df$is.neg), sum(sample_data_df$is.neg)))
 
 ps <- phyloseq(
-  otu_table(otu_mat, taxa_are_rows = TRUE),
-  tax_table(tax_mat),
+  otu_table(as.matrix(merged_counts), taxa_are_rows = TRUE),
+  tax_table(as.matrix(merged_tax)),
   sample_data(sample_data_df)
 )
-
-# Identify contaminants using prevalence method
 cat("Identifying contaminants...\n")
-contam_df <- isContaminant(ps, method = "prevalence", neg = "is.neg")
+contam_df   <- isContaminant(ps, method = "prevalence", neg = "is.neg")
 contam_taxa <- rownames(contam_df)[contam_df$contaminant]
 
-cat(paste("Found", sum(contam_df$contaminant), "contaminant taxa out of", ntaxa(ps), "total.\n"))
+cat(sprintf("Found %d contaminant taxa out of %d total.\n",
+            sum(contam_df$contaminant), ntaxa(ps)))
 
-# Remove contaminants
 ps_noncontam <- prune_taxa(!contam_df$contaminant, ps)
+# Keep only the original sample columns in output
+true_sample_names <- colnames(samples_data$counts)
+ps_noncontam_samples <- prune_samples(sample_names(ps_noncontam) %in% true_sample_names,
+                                      ps_noncontam)
 
-# Save results
 cat("Saving results...\n")
 
-# Save contaminant list
 write_tsv(
   contam_df %>% rownames_to_column("OTU_ID") %>% filter(contaminant),
   paste0(output_prefix, "_contaminants.tsv")
 )
 
-# Save non-contaminant OTU table
-noncontam_counts <- as.data.frame(otu_table(ps_noncontam)) %>%
+noncontam_counts <- as.data.frame(otu_table(ps_noncontam_samples)) %>%
   rownames_to_column("OTU_ID")
 write_tsv(noncontam_counts, paste0(output_prefix, "_counts.tsv"))
 
-# Save non-contaminant taxonomy
-noncontam_tax <- as.data.frame(tax_table(ps_noncontam)) %>%
+noncontam_tax <- as.data.frame(tax_table(ps_noncontam_samples)) %>%
   rownames_to_column("OTU_ID")
 write_tsv(noncontam_tax, paste0(output_prefix, "_taxonomy.tsv"))
 
-# Summary statistics
 summary_df <- data.frame(
-  Total_OTUs = ntaxa(ps),
-  Contaminants = sum(contam_df$contaminant),
-  Non_contaminants = ntaxa(ps_noncontam),
+  Total_OTUs        = ntaxa(ps),
+  Contaminants      = sum(contam_df$contaminant),
+  Non_contaminants  = ntaxa(ps_noncontam_samples),
   Percent_contaminated = round(sum(contam_df$contaminant) / ntaxa(ps) * 100, 2)
 )
 write_tsv(summary_df, paste0(output_prefix, "_summary.tsv"))
