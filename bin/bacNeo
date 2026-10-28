@@ -529,13 +529,28 @@ run_bacc() {
     samtools index "${PARAMS[OUT]}/${SAMPLE}_sorted.bam"
 
     echo -e "\033[46;37m >> STEP 2: Extracting unmapped reads... \033[0m"
-    samtools view -b -f 4 "${PARAMS[OUT]}/${SAMPLE}_sorted.bam" > "${PARAMS[OUT]}/${SAMPLE}_unmap.bam"
+    # Keep only pairs with both mates unmapped (-f 12), excluding secondary/supplementary records (-F 0x900)
+    samtools view -b -f 12 -F 0x900 "${PARAMS[OUT]}/${SAMPLE}_sorted.bam" > "${PARAMS[OUT]}/${SAMPLE}_unmap.bam"
     echo -e "Reads mapping against human reads saved at: ${PARAMS[OUT]}/${SAMPLE}_unmap.bam"
 
     echo -e "\033[46;37m >> STEP 3: Converting unmapped bam file to fastq files... \033[0m"
-    samtools fastq -@ "${PARAMS[THREADS]}" "${PARAMS[OUT]}/${SAMPLE}_unmap.bam" \
+    # The sorted bam is in coordinate order; collate by read name so that R1/R2 stay paired line by line,
+    # as kraken2 --paired pairs reads by position
+    samtools collate -u -O -@ "${PARAMS[THREADS]}" "${PARAMS[OUT]}/${SAMPLE}_unmap.bam" "${PARAMS[OUT]}/${SAMPLE}_collate_tmp" | \
+        samtools fastq -@ "${PARAMS[THREADS]}" \
         -1 "${PARAMS[OUT]}/${SAMPLE}_unmap_R1.fq" \
-        -2 "${PARAMS[OUT]}/${SAMPLE}_unmap_R2.fq"
+        -2 "${PARAMS[OUT]}/${SAMPLE}_unmap_R2.fq" \
+        -0 /dev/null -s /dev/null -
+    # Check that R1 and R2 contain the same read at every position
+    PAIR_CHECK=$(paste <(awk 'NR%4==1{sub(/\/1$/,"",$1); print $1}' "${PARAMS[OUT]}/${SAMPLE}_unmap_R1.fq") \
+                       <(awk 'NR%4==1{sub(/\/2$/,"",$1); print $1}' "${PARAMS[OUT]}/${SAMPLE}_unmap_R2.fq") | \
+        awk -F'\t' '{n++; if ($1 != $2) b++} END {print n+0, b+0}')
+    read -r N_PAIRS N_MISMATCH <<< "${PAIR_CHECK}"
+    if [ "${N_MISMATCH}" -ne 0 ]; then
+        echo -e "\033[31m ERROR: ${N_MISMATCH} of ${N_PAIRS} reads in ${SAMPLE}_unmap_R1.fq and ${SAMPLE}_unmap_R2.fq are not paired. \033[0m"
+        exit 1
+    fi
+    echo -e "Unmapped read pairs: ${N_PAIRS}"
     echo -e "Unmapped reads converting to fastq format saved at: ${PARAMS[OUT]}/${SAMPLE}_unmap_R1&2.fq"
 
     echo -e "\033[46;37m >> STEP 4: Classifying microbe reads... \033[0m"
